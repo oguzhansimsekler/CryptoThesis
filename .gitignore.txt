@@ -1,0 +1,15 @@
+bin/
+obj/
+
+*.user
+*.suo
+*.cache
+*.log
+
+# cryptographic material
+*.key
+*.pem
+*.pfx
+*.crt
+/secrets/
+/keys/
