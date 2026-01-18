@@ -1,0 +1,12 @@
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\bin\Debug\net7.0\KriptoLibrary.deps.json
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\bin\Debug\net7.0\KriptoLibrary.dll
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\bin\Debug\net7.0\KriptoLibrary.pdb
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.csproj.AssemblyReference.cache
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.AssemblyInfoInputs.cache
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.AssemblyInfo.cs
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.csproj.CoreCompileInputs.cache
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.dll
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\refint\KriptoLibrary.dll
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.pdb
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\ref\KriptoLibrary.dll

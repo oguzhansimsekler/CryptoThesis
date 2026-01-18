@@ -1,0 +1,171 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager NavManager
+@implements IAsyncDisposable
+
+<div class="container-fluid">
+    <div class="row mb-3 p-2 bg-dark text-white rounded">
+        <div class="col-md-4"><h3>🛡️ CryptoThesis Lab</h3></div>
+        <div class="col-md-8 text-end">
+            <div class="btn-group">
+                <button class="btn @(CurrentMode == AppMode.Education ? "btn-primary" : "btn-outline-light")" 
+                        @onclick="() => SetMode(AppMode.Education)">🎓 Eğitim Modu</button>
+                <button class="btn @(CurrentMode == AppMode.Hacker ? "btn-danger" : "btn-outline-light")" 
+                        @onclick="() => SetMode(AppMode.Hacker)">🕵️‍♂️ Hacker Modu</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row" style="height: 80vh;">
+        
+        <div class="col-md-3 bg-light border-end p-3">
+            <h4 class="text-primary">👱‍♀️ Alice (Sender)</h4>
+            <div class="alert alert-info">@AliceStatus</div>
+            
+            <button class="btn btn-success w-100 mb-3" @onclick="StartHandshake" disabled="@IsConnected">
+                🚀 Handshake Başlat
+            </button>
+
+            <textarea @bind="PlainTextMsg" class="form-control mb-2" placeholder="Mesajınızı yazın..."></textarea>
+            <button class="btn btn-primary w-100" @onclick="SendMessage" disabled="@(!IsConnected)">
+                🔒 Şifrele ve Gönder
+            </button>
+        </div>
+
+        <div class="col-md-6 bg-black text-monospace p-3" style="color: #00ff00; overflow-y: auto;">
+            <h4 class="text-danger border-bottom border-danger pb-2">⚡ The Wire (Insecure)</h4>
+            
+            @foreach (var pkg in NetworkLog)
+            {
+                <div class="packet-box border border-success p-2 mb-2">
+                    <div>📦 <strong>SEQ:</strong> @pkg.SeqNum | <strong>SIZE:</strong> @pkg.Size bytes</div>
+                    <div class="text-muted small text-truncate">@pkg.HexPreview</div>
+                    
+                    @if (CurrentMode == AppMode.Hacker)
+                    {
+                        <button class="btn btn-sm btn-danger mt-1" @onclick="() => TriggerTamper(pkg.RawData)">
+                            🔨 TAMPER (Boz)
+                        </button>
+                        <button class="btn btn-sm btn-warning mt-1" @onclick="() => TriggerReplay(pkg.RawData)">
+                            🔄 REPLAY
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="col-md-3 bg-light border-start p-3">
+            <h4 class="text-success">👨 Bob (Receiver)</h4>
+            <div class="alert alert-info">@BobStatus</div>
+            
+            <div class="list-group">
+                @foreach (var msg in BobMessages)
+                {
+                    <div class="list-group-item @(msg.IsError ? "list-group-item-danger" : "list-group-item-success")">
+                        <strong>@(msg.IsError ? "❌ ERROR" : "📩 MSG"):</strong> @msg.Content
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // --- C# MANTIĞI BURADA ---
+    private HubConnection? hubConnection;
+    private List<NetworkPacket> NetworkLog = new();
+    private List<BobMessage> BobMessages = new();
+    
+    // Durumlar
+    private AppMode CurrentMode = AppMode.Education;
+    private string AliceStatus = "Bağlantı Bekleniyor...";
+    private string BobStatus = "Dinlemede...";
+    private bool IsConnected = false;
+    private string PlainTextMsg = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // SignalR Bağlantısı
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl("https://localhost:7214/cryptohub")
+            .Build();
+
+        // Server'dan gelen eventleri dinle
+        hubConnection.On<byte[], bool>("VisualizePacket", (data, tampered) => {
+            NetworkLog.Add(new NetworkPacket { 
+                RawData = data, 
+                HexPreview = BitConverter.ToString(data).Replace("-", " "),
+                Size = data.Length,
+                SeqNum = NetworkLog.Count + 1
+            });
+            StateHasChanged();
+        });
+
+        hubConnection.On<string, string>("UpdateHandshakeUI", (step, msg) => {
+            AliceStatus = msg; 
+            BobStatus = msg;
+            if(step == "complete") IsConnected = true;
+            StateHasChanged();
+        });
+
+        hubConnection.On<byte[]>("ReceiveMessageAtBob", (data) => {
+            // BURADA CRYPTOLIBRARY KULLANILACAK
+            // try { bob.Decrypt(data) } catch { "Integrity Failed!" }
+            // Şimdilik demo:
+            BobMessages.Add(new BobMessage { Content = "Şifre Çözüldü: " + System.Text.Encoding.UTF8.GetString(data).Substring(0, 5) + "..." });
+            StateHasChanged();
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    // Handshake Başlatma (Demo)
+    private async Task StartHandshake() {
+        if (CurrentMode == AppMode.Education) {
+            // Adım adım göster
+            await hubConnection.SendAsync("BroadcastHandshakeStep", "step1", "Alice: Key Gen...");
+            await Task.Delay(1000);
+            await hubConnection.SendAsync("BroadcastHandshakeStep", "step2", "Bob: Signing...");
+            await Task.Delay(1000);
+        }
+        await hubConnection.SendAsync("BroadcastHandshakeStep", "complete", "✅ Tünel Güvenli");
+    }
+
+    private async Task SendMessage() {
+        // Gerçekte burada: var encrypted = secureChannel.Encrypt(PlainTextMsg);
+        byte[] dummyEncrypted = System.Text.Encoding.UTF8.GetBytes(PlainTextMsg); 
+        await hubConnection.SendAsync("RelayMessage", dummyEncrypted, false);
+    }
+    
+    private async Task TriggerTamper(byte[] data) {
+        await hubConnection.SendAsync("TamperAndRelay", data);
+    }
+    // 1. Mod Değiştirme Fonksiyonu (CS0103 Hatasını Çözer)
+    private void SetMode(AppMode mode)
+    {
+        CurrentMode = mode;
+
+        // Opsiyonel: Mod değişince ekranı temizlemek istersen:
+        // NetworkLog.Clear();
+        // BobMessages.Clear();
+    }
+
+    // 2. Replay Saldırısı Tetikleyici (Diğer CS0103 Hatasını Çözer)
+    private async Task TriggerReplay(byte[] data)
+    {
+        // Replay mantığı: Eski paketi (data) olduğu gibi tekrar Hub'a gönderiyoruz.
+        // Hub bunu Bob'a iletecek. Bob'un "Sequence" kontrolü bunu yakalamalı.
+        if (hubConnection is not null)
+        {
+            // 'false' diyoruz çünkü paketi değiştirmedik (tamper etmedik), sadece tekrar attık.
+            await hubConnection.SendAsync("RelayMessage", data, false);
+        }
+    }
+    public enum AppMode { Education, Hacker, Expert }
+    public class NetworkPacket { public byte[] RawData { get; set; } public string HexPreview { get; set; } public int Size { get; set; } public int SeqNum { get; set; } }
+    public class BobMessage { public string Content { get; set; } public bool IsError { get; set; } }
+
+    public async ValueTask DisposeAsync() {
+        if (hubConnection is not null) await hubConnection.DisposeAsync();
+    }
+}
