@@ -209,15 +209,15 @@
       "mscorlib.dll": "sha256-qqpKd+W+AFb6UxudEYEKzrz7ma81p5LrWUwPBVvHV4U=",
       "netstandard.dll": "sha256-OYYuPT3JUknj4LdYIa58zF7kDB3tCnLzjCSuhEjtKXM=",
       "System.Private.CoreLib.dll": "sha256-EVS7zPxPV\/41g2mzPwdXtwiigWxI\/SeAHme1IgyD6tc=",
-      "KriptoLibrary.dll": "sha256-1g7vKcxQ6TLqlFT3vkXOlz0ZZcUzAd5U0RklL7oVNf0=",
-      "KriptoClient.dll": "sha256-64tnbb8GV83334oGUZNfBCRY26o\/Nrv8f5qP9S9ChGc="
+      "KriptoLibrary.dll": "sha256-ZQhS9Wh2J4jd5W5\/qIbAM9VXLZdSCT0EvNun8GlQD64=",
+      "KriptoClient.dll": "sha256-sR+xIwxhMl45ND\/ta6AJ2ResCY2u0SPPlrTORK1Sxow="
     },
     "extensions": null,
     "lazyAssembly": null,
     "libraryInitializers": null,
     "pdb": {
-      "KriptoLibrary.pdb": "sha256-2wJNee68QP8FYeh7fbSyjIc9dSndSZYF9EIrusCr3V0=",
-      "KriptoClient.pdb": "sha256-r45JL0+yCSkQF748Q+7D19beI0X84Toi2aFtnw8wC8Y="
+      "KriptoLibrary.pdb": "sha256-t+AQCHYadOgW6K6JcIRqri24d2P5YLBmzvohstQXxwg=",
+      "KriptoClient.pdb": "sha256-pq69a0oLHb5is71GLcvLp1Jac3+TWlmiGelMLCziM7g="
     },
     "runtime": {
       "dotnet.7.0.5.h135q5eehy.js": "sha256-codB25EodaFEP43MDCfMBuKXU4LqurUKnQrpoMIFnPs=",
