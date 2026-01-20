@@ -884,8 +884,8 @@ C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\bin\Debug\net7.0\wwwroot
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\bin\Debug\net7.0\wwwroot\_framework\BouncyCastle.Cryptography.dll.gz
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\bin\Debug\net7.0\BouncyCastle.Cryptography.dll
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\vb9x02vux4-5wm4utj44n.gz
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\lw9xbu16gv-4u31rblauk.gz
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\aork7jjte1-mvuw58osd5.gz
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\ktrjepqvce-e433wdbjii.gz
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\vqzxp9ioms-efy27t6d36.gz
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\hgfs6syd75-sqb1rmdok3.gz
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\lw9xbu16gv-pzc98s96xc.gz
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\aork7jjte1-yyhn8xlxrp.gz
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\ktrjepqvce-kiaq9s30j7.gz
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\vqzxp9ioms-nc5s83l5zd.gz
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\hgfs6syd75-zzi51m0pj1.gz

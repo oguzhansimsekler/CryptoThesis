@@ -59,29 +59,13 @@ namespace CryptoLibrary
 
         public string Decrypt(SecurePackage package)
         {
-            // --- ESKİ KOD (Çok Sıkı) ---
-            /* if (package.SequenceNumber != _expectedInboundSequence)
+            // 1. Temel Kontroller
+            if (package == null || package.Ciphertext == null || package.Tag == null || package.Nonce == null)
             {
-                throw new Exception($"SIRA HATASI... Beklenen: {_expectedInboundSequence}...");
-            }
-            */
-
-            // --- YENİ KOD (Demo İçin Esnek) ---
-            // Sıra numarası yanlış olsa bile "Warning" verelim ama işlemi DURDURMAYALIM.
-            // Böylece kod aşağıya akacak, AES-GCM şifreyi çözmeye çalışacak
-            // ve verinin bozuk olduğunu anlayıp asıl istediğimiz "Tag Mismatch" hatasını verecek.
-
-            string warningPrefix = "";
-            if (package.SequenceNumber != _expectedInboundSequence)
-            {
-                // Hatayı fırlatmak yerine değişkene not alıyoruz
-                warningPrefix = $"[UYARI: SIRA NO ({package.SequenceNumber}) BEKLENEN ({_expectedInboundSequence}) DEĞİL] ";
-
-                // NOT: Gerçek bir production kodunda burada 'throw' olmalıydı.
-                // Ama biz hacker modunda bütünlük hatasını görmek istiyoruz.
+                throw new Exception("PAKET BOZUK! (Eksik Veri)");
             }
 
-            // AAD Hazırlığı (Burada gelen paketin Seq numarası kullanılır)
+            // 2. AAD Hazırlığı
             byte[] aad = new byte[8];
             BinaryPrimitives.WriteUInt64BigEndian(aad, package.SequenceNumber);
 
@@ -91,38 +75,41 @@ namespace CryptoLibrary
 
             var cipher = new GcmBlockCipher(new AesEngine());
             var parameters = new AeadParameters(new KeyParameter(_key), 128, package.Nonce, aad);
-            cipher.Init(false, parameters);
 
-            byte[] plaintextBytes = new byte[cipher.GetOutputSize(input.Length)];
-            int len = 0;
+            string plaintext = "";
 
             try
             {
-                // KRİTİK NOKTA BURASI
-                // Veri bozulmuşsa (Tamper) veya Seq numarası AAD ile uyuşmazsa burada patlayacak.
-                len = cipher.ProcessBytes(input, 0, input.Length, plaintextBytes, 0);
-                len += cipher.DoFinal(plaintextBytes, len);
+                // 3. Şifre Çözme Denemesi (Kriptografik Kontrol)
+                cipher.Init(false, parameters);
+                byte[] plaintextBytes = new byte[cipher.GetOutputSize(input.Length)];
+
+                int len = cipher.ProcessBytes(input, 0, input.Length, plaintextBytes, 0);
+                len += cipher.DoFinal(plaintextBytes, len); // <-- Tamper burada yakalanır
+
+                plaintext = Encoding.UTF8.GetString(plaintextBytes, 0, len);
             }
             catch (Exception)
             {
-                // İşte kullanıcının görmek istediği hata bu!
-                throw new Exception($"{warningPrefix}BÜTÜNLÜK HATASI! (Tag Mismatch - Veri Değiştirilmiş)");
+                // Eğer buraya düştüyse, veri değiştirilmiştir (Tamper)
+                throw new Exception("BÜTÜNLÜK HATASI! (Tag Mismatch - Veri Değiştirilmiş)");
             }
 
-            // Eğer şifre çözüldüyse ama sıra numarası yanlıştıysa sadece sırayı güncelliyoruz
-            // (Normalde bu güvensizdir ama demo için kabul edilebilir)
-            if (package.SequenceNumber >= _expectedInboundSequence)
+            // 4. Sıra Numarası Kontrolü (Protokol Kontrolü)
+            // Şifre başarıyla çözüldü, PEKİ ZAMANI DOĞRU MU?
+            if (package.SequenceNumber != _expectedInboundSequence)
             {
-                _expectedInboundSequence = package.SequenceNumber + 1;
+                // Şifre doğru olsa bile, sıra yanlış olduğu için REDDETMELİYİZ.
+                // Hatanın sonuna parantez içinde çözülen mesajı da ekliyoruz ki
+                // "Bakın bu aslında şu eski mesajdı" diye görebilin.
+                throw new Exception($"REPLAY SALDIRISI! (Seq: {package.SequenceNumber} Beklenen: {_expectedInboundSequence}) [İçerik: {plaintext}]");
             }
 
-            string result = Encoding.UTF8.GetString(plaintextBytes, 0, len);
+            // Her şey yolundaysa sırayı ilerlet
+            _expectedInboundSequence++;
 
-            // Eğer sıra hatası varsa mesajın başına uyarısını ekleyerek döndür
-            return warningPrefix + result;
+            return plaintext;
         }
-        
-
         private byte[] CalculateNonce(ulong seq)
         {
             byte[] nonce = (byte[])_nonceBase.Clone();
