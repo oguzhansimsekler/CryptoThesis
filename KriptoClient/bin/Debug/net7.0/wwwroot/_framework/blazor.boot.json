@@ -1,7 +1,7 @@
 {
   "entryAssembly": "KriptoClient",
   "resources": {
-    "hash": "sha256-yWtmZIMw3EakcSqSxVFwpbf0r+w9P8Lz61ssLQC6LzE=",
+    "hash": "sha256-DnlmiIEk80P3qYotIzPOXHkQAECVtrdoTmv4tbeHlss=",
     "runtime": {
       "dotnet.js": "sha256-eaJTmow4t8eE7FZMZR5Ja41JMOefGCbIYDTdpclGsac=",
       "dotnet.timezones.blat": "sha256-gbATD5HDsHYtW8vdPYh9iSBY4O5CjvMeCSF5xXWF1xo=",
@@ -12,6 +12,7 @@
     },
     "coreAssembly": {},
     "assembly": {
+      "BouncyCastle.Cryptography.dll": "sha256-5e6vbSY8STYZmC/TY45hNQdzEdCMlh4f4Sj5EH0p68Y=",
       "Microsoft.AspNetCore.Authorization.dll": "sha256-/EkWRHMHBhfvvlx5hLVtXGPm8+Gyp4WkPiKKiiJIrqQ=",
       "Microsoft.AspNetCore.Components.dll": "sha256-SvjxqyTqc68zPsYivPRkvjKRhUg5zYufzqwGNS83bwg=",
       "Microsoft.AspNetCore.Components.Forms.dll": "sha256-eoQ2CgfBGkvbK4QUMBgFDPIBqJem+g8247Fb3ZmnmCI=",
@@ -214,12 +215,12 @@
       "mscorlib.dll": "sha256-HYyp9hO+GKFyupcEiY1PxtBBXbHzefsO3Q8RiQTaNCA=",
       "netstandard.dll": "sha256-N5CcC3sLzGBesbmeJAp5bwxABN9u7SwkIO5qfFjzoik=",
       "System.Private.CoreLib.dll": "sha256-bJS1DJmhjP7PvegYG+Z8O9EDtRY78HKinA3LUMVLlSQ=",
-      "KriptoLibrary.dll": "sha256-lacRJRdngQLhRKQaT2kO/0mvAldN6ZtOR4XuXgX3C9k=",
-      "KriptoClient.dll": "sha256-wW4Olhwdgr1LoSTM1lXRfq9ivP1h7AbGIwbzBGSubWQ="
+      "KriptoLibrary.dll": "sha256-jhafl8jqMpVf0vss1C/jdW+js8ToL8vQDE5h1iqRJeY=",
+      "KriptoClient.dll": "sha256-rKCSIYy74Nkb3FSP00Tp1sGIjHqISQHPwOW0wJtrlqI="
     },
     "pdb": {
-      "KriptoLibrary.pdb": "sha256-wYVWoKZgEdpjqnmAc4xWS2Rvac5xQo7DCWbqAn8Uvzs=",
-      "KriptoClient.pdb": "sha256-h8hSJl0kXjofXj0HVleYizOEcMx27lJ3oSNn7tG49Ss="
+      "KriptoLibrary.pdb": "sha256-Nkp3SYp4BM6TzkLSv5PtRYANu+KqtmhBBAepIgvPSpg=",
+      "KriptoClient.pdb": "sha256-rtYZuX0cVx3tB34dSrGVUKaxcqEwiH+Bu8xXN1LN34k="
     },
     "runtimeAssets": {
       "dotnet.wasm": {

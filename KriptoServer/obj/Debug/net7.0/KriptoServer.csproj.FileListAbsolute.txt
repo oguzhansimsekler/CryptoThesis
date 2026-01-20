@@ -59,3 +59,4 @@ C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\obj\Debug\net7.0\staticw
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\obj\Debug\net7.0\staticwebassets.build.endpoints.json
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\obj\Debug\net7.0\staticwebassets.upToDateCheck.txt
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\obj\Debug\net7.0\KriptoSe.C2C0F960.Up2Date
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\bin\Debug\net7.0\BouncyCastle.Cryptography.dll

@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "YHoRBmHJsGs=",
+  "dgSpecHash": "KUfTCVHs6Rg=",
   "success": true,
   "projectFilePath": "C:\\Users\\OguzHan\\source\\repos\\CryptoThesis\\KriptoClient\\KriptoClient.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\OguzHan\\.nuget\\packages\\bouncycastle.cryptography\\2.6.2\\bouncycastle.cryptography.2.6.2.nupkg.sha512",
     "C:\\Users\\OguzHan\\.nuget\\packages\\microsoft.aspnetcore.authorization\\7.0.5\\microsoft.aspnetcore.authorization.7.0.5.nupkg.sha512",
     "C:\\Users\\OguzHan\\.nuget\\packages\\microsoft.aspnetcore.components\\7.0.5\\microsoft.aspnetcore.components.7.0.5.nupkg.sha512",
     "C:\\Users\\OguzHan\\.nuget\\packages\\microsoft.aspnetcore.components.analyzers\\7.0.5\\microsoft.aspnetcore.components.analyzers.7.0.5.nupkg.sha512",

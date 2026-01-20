@@ -1,37 +1,65 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Generators;
+using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Asn1.X9;
+using Org.BouncyCastle.Crypto.Digests;
+using Org.BouncyCastle.Crypto.Signers;
 
-namespace KriptoLibrary
+namespace CryptoLibrary
 {
     public class IdentityService
     {
-        private readonly ECDsa _identityKey;
+        private readonly AsymmetricCipherKeyPair _keyPair;
+        private readonly X9ECParameters _curve;
+        private readonly ECDomainParameters _domain;
 
         public IdentityService()
         {
-            // Tez standardı: NIST P-256 Eğrisi
-            _identityKey = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            // NIST P-256 (secp256r1) Eğrisi
+            _curve = ECNamedCurveTable.GetByName("secp256r1");
+            _domain = new ECDomainParameters(_curve.Curve, _curve.G, _curve.N, _curve.H);
+
+            // Anahtar Üretimi
+            var gen = new ECKeyPairGenerator();
+            var secureRandom = new SecureRandom();
+            var keyGenParam = new ECKeyGenerationParameters(_domain, secureRandom);
+            gen.Init(keyGenParam);
+            _keyPair = gen.GenerateKeyPair();
         }
 
-        // Public Key'i dışarıya ver (Handshake için)
-        public byte[] GetPublicKey() => _identityKey.ExportSubjectPublicKeyInfo();
+        public byte[] GetPublicKey()
+        {
+            // Public Key'i byte dizisi olarak dışarı ver (Q noktası - 65 byte uncompressed)
+            var pub = (ECPublicKeyParameters)_keyPair.Public;
+            return pub.Q.GetEncoded(false);
+        }
 
-        // El sıkışma özetini (Transcript) imzala (Authentication)
         public byte[] SignData(byte[] data)
         {
-            return _identityKey.SignData(data, HashAlgorithmName.SHA256);
+            var signer = new DsaDigestSigner(new ECDsaSigner(), new Sha256Digest());
+            signer.Init(true, _keyPair.Private); // İmzalama modu
+            signer.BlockUpdate(data, 0, data.Length);
+            return signer.GenerateSignature();
         }
 
-        // Karşı tarafın imzasını doğrula
-        public bool VerifySignature(byte[] publicKey, byte[] data, byte[] signature)
+        public bool VerifySignature(byte[] publicKeyBytes, byte[] data, byte[] signature)
         {
-            using var validator = ECDsa.Create();
-            validator.ImportSubjectPublicKeyInfo(publicKey, out _);
-            return validator.VerifyData(data, signature, HashAlgorithmName.SHA256);
+            try
+            {
+                // Byte dizisinden Public Key nesnesini geri oluştur
+                var q = _curve.Curve.DecodePoint(publicKeyBytes);
+                var pubKeyParam = new ECPublicKeyParameters(q, _domain);
+
+                var verifier = new DsaDigestSigner(new ECDsaSigner(), new Sha256Digest());
+                verifier.Init(false, pubKeyParam); // Doğrulama modu
+                verifier.BlockUpdate(data, 0, data.Length);
+                return verifier.VerifySignature(signature);
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

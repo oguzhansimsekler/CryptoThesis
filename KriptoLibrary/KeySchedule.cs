@@ -1,35 +1,41 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
+﻿using Org.BouncyCastle.Crypto.Digests;
+using Org.BouncyCastle.Crypto.Generators;
+using Org.BouncyCastle.Crypto.Parameters;
 using System.Text;
-using System.Threading.Tasks;
 
-namespace KriptoLibrary
+namespace CryptoLibrary
 {
-    public class KeySchedule
+    public static class KeySchedule
     {
-        // Shared Secret -> (AES Key, Nonce Base) dönüşümü
-        public static (byte[] Key, byte[] NonceBase) DeriveSessionKeys(
-            byte[] sharedSecret,
-            byte[] contextInfo) // Transcript Hash buraya gelecek (Context Binding)
+        /// <summary>
+        /// Shared Secret ve Handshake Transcript üzerinden oturum anahtarlarını türetir.
+        /// </summary>
+        /// <param name="sharedSecret">ECDH çıktısı (32 byte)</param>
+        /// <param name="transcriptHash">
+        /// GÜVENLİK KRİTİĞİ: Bu hash şu formatta olmalı:
+        /// SHA256( "CTPK-HS1" || ClientEphPub || ServerEphPub || ClientIdPub || ServerIdPub )
+        /// </param>
+        public static (byte[] Key, byte[] NonceBase) DeriveSessionKeys(byte[] sharedSecret, byte[] transcriptHash)
         {
-            // 1. AES-256 Anahtarı (32 Byte)
-            byte[] aesKey = HKDF.DeriveKey(
-                HashAlgorithmName.SHA256,
-                sharedSecret,
-                32,
-                null, // Salt opsiyonel (Simülasyon için null geçtik, geliştirilebilir)
-                contextInfo
-            );
+            var hkdf = new HkdfBytesGenerator(new Sha256Digest());
 
-            // 2. Nonce Base (12 Byte) - Sequence ile XORlanacak kök nonce
-            byte[] nonceBase = HKDF.Expand(
-                HashAlgorithmName.SHA256,
-                aesKey,
-                12,
-                Encoding.UTF8.GetBytes("nonce_expansion")
-            );
+            // Salt olarak Transcript Hash kullanıyoruz (Context Binding)
+            byte[] salt = transcriptHash;
+
+            // Info: Protokol versiyonu ve amacı (Domain Separation)
+            byte[] info = Encoding.UTF8.GetBytes("CryptoThesis-Protocol-v1-SessionKeys");
+
+            hkdf.Init(new HkdfParameters(sharedSecret, salt, info));
+
+            // Toplam 44 Byte (32 Key + 12 Nonce)
+            byte[] keyMaterial = new byte[44];
+            hkdf.GenerateBytes(keyMaterial, 0, 44);
+
+            byte[] aesKey = new byte[32];
+            byte[] nonceBase = new byte[12];
+
+            Array.Copy(keyMaterial, 0, aesKey, 0, 32);
+            Array.Copy(keyMaterial, 32, nonceBase, 0, 12);
 
             return (aesKey, nonceBase);
         }

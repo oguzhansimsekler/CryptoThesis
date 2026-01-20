@@ -8,11 +8,20 @@
     ".NETCoreApp,Version=v7.0": {
       "KriptoLibrary/1.0.0": {
         "dependencies": {
+          "BouncyCastle.Cryptography": "2.6.2",
           "Microsoft.AspNetCore.SignalR.Client": "10.0.2",
           "Microsoft.AspNetCore.SignalR.Common": "10.0.2"
         },
         "runtime": {
           "KriptoLibrary.dll": {}
+        }
+      },
+      "BouncyCastle.Cryptography/2.6.2": {
+        "runtime": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "assemblyVersion": "2.0.0.0",
+            "fileVersion": "2.6.2.46322"
+          }
         }
       },
       "Microsoft.AspNetCore.Connections.Abstractions/10.0.2": {
@@ -293,6 +302,13 @@
       "type": "project",
       "serviceable": false,
       "sha512": ""
+    },
+    "BouncyCastle.Cryptography/2.6.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-7oWOcvnntmMKNzDLsdxAYqApt+AjpRpP2CShjMfIa3umZ42UQMvH0tl1qAliYPNYO6vTdcGMqnRrCPmsfzTI1w==",
+      "path": "bouncycastle.cryptography/2.6.2",
+      "hashPath": "bouncycastle.cryptography.2.6.2.nupkg.sha512"
     },
     "Microsoft.AspNetCore.Connections.Abstractions/10.0.2": {
       "type": "package",

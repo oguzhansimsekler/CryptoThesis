@@ -2,6 +2,19 @@
   "version": 3,
   "targets": {
     "net7.0": {
+      "BouncyCastle.Cryptography/2.6.2": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Microsoft.AspNetCore.Connections.Abstractions/10.0.2": {
         "type": "package",
         "dependencies": {
@@ -472,6 +485,26 @@
     }
   },
   "libraries": {
+    "BouncyCastle.Cryptography/2.6.2": {
+      "sha512": "7oWOcvnntmMKNzDLsdxAYqApt+AjpRpP2CShjMfIa3umZ42UQMvH0tl1qAliYPNYO6vTdcGMqnRrCPmsfzTI1w==",
+      "type": "package",
+      "path": "bouncycastle.cryptography/2.6.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.md",
+        "README.md",
+        "bouncycastle.cryptography.2.6.2.nupkg.sha512",
+        "bouncycastle.cryptography.nuspec",
+        "lib/net461/BouncyCastle.Cryptography.dll",
+        "lib/net461/BouncyCastle.Cryptography.xml",
+        "lib/net6.0/BouncyCastle.Cryptography.dll",
+        "lib/net6.0/BouncyCastle.Cryptography.xml",
+        "lib/netstandard2.0/BouncyCastle.Cryptography.dll",
+        "lib/netstandard2.0/BouncyCastle.Cryptography.xml",
+        "packageIcon.png"
+      ]
+    },
     "Microsoft.AspNetCore.Connections.Abstractions/10.0.2": {
       "sha512": "88fNcB7Vl5vn8vEsgpOiBeR43FlP+aPs8aUghuIcQ5RRNO5XcYgXfeCEKcDc3vlG7PJFxl0fVVO+/ObMBsLm4g==",
       "type": "package",
@@ -1326,6 +1359,7 @@
   },
   "projectFileDependencyGroups": {
     "net7.0": [
+      "BouncyCastle.Cryptography >= 2.6.2",
       "Microsoft.AspNetCore.SignalR.Client >= 10.0.2",
       "Microsoft.AspNetCore.SignalR.Common >= 10.0.2"
     ]
@@ -1380,6 +1414,10 @@
       "net7.0": {
         "targetAlias": "net7.0",
         "dependencies": {
+          "BouncyCastle.Cryptography": {
+            "target": "Package",
+            "version": "[2.6.2, )"
+          },
           "Microsoft.AspNetCore.SignalR.Client": {
             "target": "Package",
             "version": "[10.0.2, )"

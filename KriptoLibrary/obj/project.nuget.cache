@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "pOp560lVP4Q=",
+  "dgSpecHash": "DwBhVHNN/cg=",
   "success": true,
   "projectFilePath": "C:\\Users\\OguzHan\\source\\repos\\CryptoThesis\\KriptoLibrary\\KriptoLibrary.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\OguzHan\\.nuget\\packages\\bouncycastle.cryptography\\2.6.2\\bouncycastle.cryptography.2.6.2.nupkg.sha512",
     "C:\\Users\\OguzHan\\.nuget\\packages\\microsoft.aspnetcore.connections.abstractions\\10.0.2\\microsoft.aspnetcore.connections.abstractions.10.0.2.nupkg.sha512",
     "C:\\Users\\OguzHan\\.nuget\\packages\\microsoft.aspnetcore.http.connections.client\\10.0.2\\microsoft.aspnetcore.http.connections.client.10.0.2.nupkg.sha512",
     "C:\\Users\\OguzHan\\.nuget\\packages\\microsoft.aspnetcore.http.connections.common\\10.0.2\\microsoft.aspnetcore.http.connections.common.10.0.2.nupkg.sha512",

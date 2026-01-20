@@ -2,6 +2,19 @@
   "version": 3,
   "targets": {
     "net7.0": {
+      "BouncyCastle.Cryptography/2.6.2": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Microsoft.AspNetCore.Authorization/7.0.5": {
         "type": "package",
         "dependencies": {
@@ -800,6 +813,7 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v7.0",
         "dependencies": {
+          "BouncyCastle.Cryptography": "2.6.2",
           "Microsoft.AspNetCore.SignalR.Client": "10.0.2",
           "Microsoft.AspNetCore.SignalR.Common": "10.0.2"
         },
@@ -812,6 +826,19 @@
       }
     },
     "net7.0/browser-wasm": {
+      "BouncyCastle.Cryptography/2.6.2": {
+        "type": "package",
+        "compile": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net6.0/BouncyCastle.Cryptography.dll": {
+            "related": ".xml"
+          }
+        }
+      },
       "Microsoft.AspNetCore.Authorization/7.0.5": {
         "type": "package",
         "dependencies": {
@@ -1610,6 +1637,7 @@
         "type": "project",
         "framework": ".NETCoreApp,Version=v7.0",
         "dependencies": {
+          "BouncyCastle.Cryptography": "2.6.2",
           "Microsoft.AspNetCore.SignalR.Client": "10.0.2",
           "Microsoft.AspNetCore.SignalR.Common": "10.0.2"
         },
@@ -1623,6 +1651,26 @@
     }
   },
   "libraries": {
+    "BouncyCastle.Cryptography/2.6.2": {
+      "sha512": "7oWOcvnntmMKNzDLsdxAYqApt+AjpRpP2CShjMfIa3umZ42UQMvH0tl1qAliYPNYO6vTdcGMqnRrCPmsfzTI1w==",
+      "type": "package",
+      "path": "bouncycastle.cryptography/2.6.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "LICENSE.md",
+        "README.md",
+        "bouncycastle.cryptography.2.6.2.nupkg.sha512",
+        "bouncycastle.cryptography.nuspec",
+        "lib/net461/BouncyCastle.Cryptography.dll",
+        "lib/net461/BouncyCastle.Cryptography.xml",
+        "lib/net6.0/BouncyCastle.Cryptography.dll",
+        "lib/net6.0/BouncyCastle.Cryptography.xml",
+        "lib/netstandard2.0/BouncyCastle.Cryptography.dll",
+        "lib/netstandard2.0/BouncyCastle.Cryptography.xml",
+        "packageIcon.png"
+      ]
+    },
     "Microsoft.AspNetCore.Authorization/7.0.5": {
       "sha512": "17BgaYa1QB8mOERZ/TSNwsWHrh65iU61VrsqivbZc+VUqnACtPCPbP0MFl/7CznXWCOXQZ59QRB6A5t0skyo2g==",
       "type": "package",
