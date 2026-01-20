@@ -1,11 +1,1 @@
-{
-  "Version": 1,
-  "Hash": "PxBEiSXOSKhw3Mf2oGN5eZyIgfZHmFem7DAK82VmrKU=",
-  "Source": "KriptoServer",
-  "BasePath": "_content/KriptoServer",
-  "Mode": "Default",
-  "ManifestType": "Build",
-  "ReferencedProjectsConfiguration": [],
-  "DiscoveryPatterns": [],
-  "Assets": []
-}
+{"Version":1,"Hash":"eQd3MZpoDQkjxyJsHDZY+ytrGi1P0HZHgHc5prlDphM=","Source":"KriptoServer","BasePath":"_content/KriptoServer","Mode":"Default","ManifestType":"Build","ReferencedProjectsConfiguration":[],"DiscoveryPatterns":[],"Assets":[],"Endpoints":[]}

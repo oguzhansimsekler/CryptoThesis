@@ -1,5 +1,6 @@
 ﻿@page "/"
 @using Microsoft.AspNetCore.SignalR.Client
+@using System.Security.Cryptography
 @inject NavigationManager NavManager
 @implements IAsyncDisposable
 
@@ -69,7 +70,6 @@
         </div>
     </div>
 </div>
-
 @code {
     // --- C# MANTIĞI BURADA ---
     private HubConnection? hubConnection;

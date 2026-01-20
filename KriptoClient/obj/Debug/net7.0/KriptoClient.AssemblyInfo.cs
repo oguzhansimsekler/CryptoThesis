@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("KriptoClient")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b3c094f2865ab499b9b1cfb07424c843406f718e")]
 [assembly: System.Reflection.AssemblyProductAttribute("KriptoClient")]
 [assembly: System.Reflection.AssemblyTitleAttribute("KriptoClient")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
