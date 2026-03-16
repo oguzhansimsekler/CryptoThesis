@@ -1,72 +1,66 @@
-﻿using CryptoLibrary;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace KriptoLibrary
+﻿namespace KriptoLibrary
 {
+    using CryptoLibrary;
+    using System;
+    using System.Linq;
+
     public class CryptoProtocolSession
     {
-        public string Role { get; } // "Client" veya "Server"
-
-        // Alt Modüller
-        public IdentityService Identity { get; private set; }
-        public HandshakeService Handshake { get; private set; }
+        public string Role { get; }
+        public IdentityService Identity { get; }
+        public HandshakeService Handshake { get; }
         public SecureChannel? Channel { get; private set; }
 
-        // Durum Bilgisi (State)
-        public byte[]? MyEphemeralPub { get; private set; }
+        public byte[]? MyEphemeralPub { get; }
         public byte[]? PeerEphemeralPub { get; private set; }
         public byte[]? TranscriptHash { get; private set; }
 
-        public CryptoProtocolSession(string role)
+        // Constructor artık zorunlu olarak bir IdentityService bekler (CS1503 ve CS1729 çözümü).
+        public CryptoProtocolSession(IdentityService identity, string role)
         {
             Role = role;
-            Identity = new IdentityService();
+            Identity = identity;
             Handshake = new HandshakeService();
-            // Kendi geçici anahtarımızı oluşturuyoruz
             MyEphemeralPub = Handshake.GetPublicKey();
         }
 
-        /// <summary>
-        /// Handshake işlemini tamamlar ve SecureChannel oluşturur.
-        /// </summary>
         public void FinalizeHandshake(byte[] peerIdentityPub, byte[] peerEphPub)
         {
             this.PeerEphemeralPub = peerEphPub;
 
-            // 1. Shared Secret Türet
+            // 1. Shared Secret Türet (ECDH)
             byte[] sharedSecret = Handshake.DeriveSharedSecret(peerEphPub);
 
-            // 2. Canonical Transcript Hash Hesapla (Sıralama Önemli!)
+            // 2. Transcript İçin Kimlikleri Hazırla
             byte[] clientID, serverID, clientEph, serverEph;
 
             if (Role == "Client")
             {
-                clientID = Identity.GetPublicKey();
+                // ALICE: Kendi kimliği yoksa (Anonymous) hata fırlatmak yerine boş dizi kullan
+                try
+                {
+                    clientID = Identity.GetPublicKey();
+                }
+                catch
+                {
+                    clientID = new byte[65]; // 65 byte'lık dummy ID
+                }
+
                 serverID = peerIdentityPub;
                 clientEph = MyEphemeralPub!;
                 serverEph = peerEphPub;
             }
-            else // Server
+            else // BOB (Server)
             {
-                clientID = peerIdentityPub;
+                clientID = peerIdentityPub; // Alice'den gelen (boş) ID
                 serverID = Identity.GetPublicKey();
                 clientEph = peerEphPub;
                 serverEph = MyEphemeralPub!;
             }
 
-            // ProtocolHelpers sınıfını kullanıyoruz
-            TranscriptHash = ProtocolHelpers.CalculateCanonicalTranscriptHash(
-                clientID, serverID, clientEph, serverEph
-            );
-
-            // 3. Anahtarları Türet (Shared Secret + Transcript Hash)
+            // 3. Transcript Hash ve Anahtar Türetme (Geri kalanı aynı)
+            TranscriptHash = ProtocolHelpers.CalculateCanonicalTranscriptHash(clientID, serverID, clientEph, serverEph);
             var keys = KeySchedule.DeriveSessionKeys(sharedSecret, TranscriptHash);
-
-            // 4. Güvenli Kanalı Kur
             Channel = new SecureChannel(keys.Key, keys.NonceBase);
         }
     }

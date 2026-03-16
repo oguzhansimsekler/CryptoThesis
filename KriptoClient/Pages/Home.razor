@@ -3,7 +3,6 @@
 @using KriptoLibrary
 @using Microsoft.AspNetCore.SignalR.Client
 @using System.Security.Cryptography
-@using Org.BouncyCastle.Crypto.Digests
 @inject NavigationManager NavManager
 @implements IAsyncDisposable
 
@@ -25,20 +24,13 @@
     </div>
 
     <div class="row" style="height: 80vh;">
-
         <div class="col-md-3 bg-light border-end p-3">
             <h4 class="text-primary">👱‍♀️ Alice (Sender)</h4>
             <div class="alert alert-info">@AliceStatus</div>
-
             <button class="btn btn-success w-100 mb-3" @onclick="StartHandshake" disabled="@IsConnected">
                 🚀 Handshake Başlat
             </button>
-
-            <input type="text"
-                   class="form-control"
-                   placeholder="Mesaj yazın..."
-                   @bind="PlainTextMsg"
-                   @bind:event="oninput" />
+            <input type="text" class="form-control" placeholder="Mesaj yazın..." @bind="PlainTextMsg" @bind:event="oninput" />
             <button class="btn btn-primary w-100" @onclick="SendMessage" disabled="@(!IsConnected)">
                 🔒 Şifrele ve Gönder
             </button>
@@ -46,21 +38,15 @@
 
         <div class="col-md-6 bg-black text-monospace p-3" style="color: #00ff00; overflow-y: auto;">
             <h4 class="text-danger border-bottom border-danger pb-2">⚡ The Wire (Insecure)</h4>
-
             @foreach (var pkg in NetworkLog)
             {
                 <div class="packet-box border border-success p-2 mb-2">
                     <div>📦 <strong>SEQ:</strong> @pkg.SeqNum | <strong>SIZE:</strong> @pkg.Size bytes</div>
                     <div class="text-muted small text-truncate">@pkg.HexPreview</div>
-
                     @if (CurrentMode == AppMode.Hacker)
                     {
-                        <button class="btn btn-sm btn-danger mt-1" @onclick="() => TriggerTamperFromWire(pkg.JsonContent)">
-                            🔨 TAMPER (Boz)
-                        </button>
-                        <button class="btn btn-sm btn-warning mt-1" @onclick="() => TriggerReplay(pkg.RawData)">
-                            🔄 REPLAY
-                        </button>
+                        <button class="btn btn-sm btn-danger mt-1" @onclick="() => TriggerTamperFromWire(pkg.JsonContent)">🔨 TAMPER (Boz)</button>
+                        <button class="btn btn-sm btn-warning mt-1" @onclick="() => TriggerReplay(pkg.RawData)">🔄 REPLAY</button>
                     }
                 </div>
             }
@@ -69,7 +55,6 @@
         <div class="col-md-3 bg-light border-start p-3">
             <h4 class="text-success">👨 Bob (Receiver)</h4>
             <div class="alert alert-info">@BobStatus</div>
-
             <div class="list-group" style="max-height: 400px; overflow-y: auto;">
                 @foreach (var msg in BobMessages)
                 {
@@ -84,17 +69,20 @@
         </div>
     </div>
 </div>
+
 @code {
-    // --- C# MANTIĞI BURADA ---
     private CryptoProtocolSession? AliceSession;
     private CryptoProtocolSession? BobSession;
 
-    // Diğer Değişkenler
+    // 1. Sunucu anahtarını üret (Sabit tutuyoruz)
+    private static readonly IdentityService StaticBobIdentity = new IdentityService(IdentityService.GenerateLongTermKeyPair());
+
+    // 2. Alice'in güven çıpası (Hata almamak için Bob'un gerçek anahtarını buraya veriyoruz)
+    private static readonly byte[] TrustedServerPublicKey = StaticBobIdentity.GetPublicKey();
+
     private HubConnection? hubConnection;
     private List<NetworkPacket> NetworkLog = new();
     private List<BobMessage> BobMessages = new();
-
-    // UI Durumları
     private AppMode CurrentMode = AppMode.Education;
     private string AliceStatus = "Bağlantı Bekleniyor...";
     private string BobStatus = "Dinlemede...";
@@ -103,36 +91,20 @@
 
     protected override async Task OnInitializedAsync()
     {
-        // SignalR Bağlantısı
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl("https://localhost:7214/cryptohub") // Kendi portunu kontrol et!
-            .Build();
+        hubConnection = new HubConnectionBuilder().WithUrl("https://localhost:7214/cryptohub").Build();
 
-        // 1. Handshake Durumlarını Dinle
         hubConnection.On<string, string>("UpdateHandshakeUI", (step, msg) =>
         {
-            AliceStatus = msg;
-            BobStatus = msg;
+            AliceStatus = msg; BobStatus = msg;
             if (step == "complete") IsConnected = true;
             StateHasChanged();
         });
 
-        // 2. Paketleri Dinle (Görsel Log + Şifre Çözme)
         hubConnection.On<string, bool>("ReceivePackageJson", (jsonPackage, isTampered) =>
         {
-
-            // Log Ekranı İçin
             var rawBytes = System.Text.Encoding.UTF8.GetBytes(jsonPackage);
-            NetworkLog.Add(new NetworkPacket
-            {
-                RawData = rawBytes,
-                HexPreview = "Encrypted (JSON)...",
-                Size = rawBytes.Length,
-                SeqNum = NetworkLog.Count + 1,
-                JsonContent = jsonPackage
-            });
+            NetworkLog.Add(new NetworkPacket { RawData = rawBytes, HexPreview = "Encrypted (JSON)...", Size = rawBytes.Length, SeqNum = NetworkLog.Count + 1, JsonContent = jsonPackage });
 
-            // Şifre Çözme (Bob)
             if (BobSession?.Channel != null)
             {
                 try
@@ -141,23 +113,12 @@
                     if (package != null)
                     {
                         string plainText = BobSession.Channel.Decrypt(package);
-
-                        BobMessages.Add(new BobMessage
-                        {
-                            Content = plainText,
-                            IsError = false,
-                            Seq = package.SequenceNumber // Artık hata vermeyecek
-                        });
+                        BobMessages.Add(new BobMessage { Content = plainText, IsError = false, Seq = package.SequenceNumber });
                     }
                 }
                 catch (Exception ex)
                 {
-                    BobMessages.Add(new BobMessage
-                    {
-                        Content = $"HATA: {ex.Message}",
-                        IsError = true,
-                        Seq = 0
-                    });
+                    BobMessages.Add(new BobMessage { Content = $"HATA: {ex.Message}", IsError = true, Seq = 0 });
                 }
             }
             StateHasChanged();
@@ -168,114 +129,101 @@
 
     private async Task StartHandshake()
     {
-        AliceStatus = "Başlatılıyor...";
+        AliceStatus = "Handshake Başlatılıyor (AKE-V1)...";
         await Task.Delay(300);
 
-        // Session'ları Başlat
-        AliceSession = new CryptoProtocolSession("Client");
-        BobSession = new CryptoProtocolSession("Server");
+        // 3. DÜZELTME (CS1503): Oturumlar, string yerine IdentityService nesnesi verilerek başlatılır.
+        // Alice (Client) 'Verifier' rolünde, Bob (Server) ise 'Signer' rolünde başlatılır.
+        AliceSession = new CryptoProtocolSession(new IdentityService(TrustedServerPublicKey), "Client");
+        BobSession = new CryptoProtocolSession(StaticBobIdentity, "Server");
 
-        // Key Değişimi Simülasyonu
         byte[] aliceEph = AliceSession.MyEphemeralPub!;
         byte[] bobEph = BobSession.MyEphemeralPub!;
-        byte[] aliceId = AliceSession.Identity.GetPublicKey();
-        byte[] bobId = BobSession.Identity.GetPublicKey();
+
+        // Replay saldırısı koruması için Nonce değerleri üretilir.
+        byte[] aliceNonce = RandomNumberGenerator.GetBytes(16);
+        byte[] bobNonce = RandomNumberGenerator.GetBytes(16);
+        byte[] context = System.Text.Encoding.UTF8.GetBytes("WASM-AKE-V1");
 
         await Task.Delay(500);
 
-        // Handshake Finalize
-        AliceSession.FinalizeHandshake(peerIdentityPub: bobId, peerEphPub: bobEph);
-        BobSession.FinalizeHandshake(peerIdentityPub: aliceId, peerEphPub: aliceEph);
+        // 4. DÜZELTME: Transcript oluşturulur (Nonce ve Context dahil).
+        byte[] transcript = Combine(context, aliceNonce, bobNonce, aliceEph, bobEph);
 
-        // UI Güncelle
-        AliceStatus = "✅ Tünel Hazır (Client)";
+        // 5. DÜZELTME: Sunucu imzalar, Alice doğrular.
+        byte[] bobSignature = BobSession.Identity.SignData(transcript);
+        bool isAuthValid = AliceSession.Identity.VerifySignature(transcript, bobSignature);
+
+        if (!isAuthValid)
+        {
+            AliceStatus = "❌ KRİTİK HATA: Sunucu doğrulaması başarısız!";
+            IsConnected = false;
+            return;
+        }
+
+        // 6. DÜZELTME: El sıkışma tamamlanır.
+        // Parametreler: (Karşı tarafın kimlik anahtarı, karşı tarafın geçici anahtarı)
+        AliceSession.FinalizeHandshake(TrustedServerPublicKey, bobEph);
+        byte[] anonymousClientId = new byte[65]; // Anonim istemci için 65 byte boş dizi
+        BobSession.FinalizeHandshake(anonymousClientId, aliceEph);
+        AliceStatus = "✅ Tünel Hazır (Kimlik Doğrulandı)";
         BobStatus = "✅ Tünel Hazır (Server)";
         IsConnected = true;
 
         if (hubConnection is not null)
+            await hubConnection.SendAsync("BroadcastHandshakeStep", "complete", "✅ Tünel Kuruldu ve Kimlik Doğrulandı");
+    }
+
+    // Yardımcı Metot: Transcript için byte dizilerini birleştirir.
+    private byte[] Combine(params byte[][] arrays)
+    {
+        byte[] rv = new byte[arrays.Sum(a => a.Length)];
+        int offset = 0;
+        foreach (byte[] array in arrays)
         {
-            await hubConnection.SendAsync("BroadcastHandshakeStep", "complete", "✅ Tünel Kuruldu");
+            System.Buffer.BlockCopy(array, 0, rv, offset, array.Length);
+            offset += array.Length;
         }
+        return rv;
     }
 
     private async Task SendMessage()
     {
         if (AliceSession?.Channel == null) return;
-
-        // Şifrele ve JSON yap
         var package = AliceSession.Channel.Encrypt(PlainTextMsg);
         string jsonPkg = System.Text.Json.JsonSerializer.Serialize(package);
-
-        if (hubConnection is not null)
-        {
-            await hubConnection.SendAsync("RelayMessage", jsonPkg, false);
-        }
+        if (hubConnection is not null) await hubConnection.SendAsync("RelayMessage", jsonPkg, false);
         PlainTextMsg = "";
     }
 
-    // --- YARDIMCI METOTLAR ---
     private void SetMode(AppMode mode) => CurrentMode = mode;
 
-    private async Task TriggerTamper() // Parametreyi kaldırdık, çünkü PlainTextMsg kullanacağız
-    {
-        if (AliceSession?.Channel == null || string.IsNullOrEmpty(PlainTextMsg)) return;
-
-        // 1. Alice normal şekilde şifreler
-        var package = AliceSession.Channel.Encrypt(PlainTextMsg);
-
-        // 2. JSON paketini oluştur
-        string jsonPkg = System.Text.Json.JsonSerializer.Serialize(package);
-
-        // 3. Hacker araya girer ve "TamperAndRelay" metodunu çağırır
-        if (hubConnection is not null)
-        {
-            // Normal "RelayMessage" yerine "TamperAndRelay" çağırıyoruz
-            await hubConnection.SendAsync("TamperAndRelay", jsonPkg);
-        }
-
-        PlainTextMsg = ""; // Kutuyu temizle
-    }
-    // Wire (Orta Panel) üzerindeki butondan çağrılacak metot
     private async Task TriggerTamperFromWire(string originalJson)
     {
         if (hubConnection is not null && !string.IsNullOrEmpty(originalJson))
-        {
-            // Elimizdeki hazır şifreli paketi (JSON) sunucuya gönderiyoruz.
-            // Sunucu bunu alacak, bozacak ve Bob'a iletecek.
             await hubConnection.SendAsync("TamperAndRelay", originalJson);
-        }
     }
+
     private async Task TriggerReplay(byte[] data)
     {
         if (hubConnection is not null)
-            await hubConnection.SendAsync("RelayMessage", System.Text.Encoding.UTF8.GetString(data), false); // Basit string relay
+            await hubConnection.SendAsync("RelayMessage", System.Text.Encoding.UTF8.GetString(data), false);
     }
 
-    // --- SINIF TANIMLARI ---
-    public enum AppMode { Education, Hacker, Expert }
-
+    public enum AppMode { Education, Hacker }
     public class NetworkPacket
     {
-        public byte[] RawData { get; set; }
-        public string HexPreview { get; set; }
+        public byte[] RawData { get; set; } = Array.Empty<byte>();
+        public string HexPreview { get; set; } = "";
         public int Size { get; set; }
         public int SeqNum { get; set; }
         public string JsonContent { get; set; } = "";
     }
-    public async ValueTask DisposeAsync()
-    {
-        if (hubConnection is not null)
-        {
-            await hubConnection.DisposeAsync();
-        }
-    }
+    public async ValueTask DisposeAsync() { if (hubConnection is not null) await hubConnection.DisposeAsync(); }
     public class BobMessage
     {
-        public string Content { get; set; }
+        public string Content { get; set; } = "";
         public bool IsError { get; set; }
-
-        // 2. DÜZELTME BURADA: Seq ÖZELLİĞİNİ EKLEDİK
         public ulong Seq { get; set; }
     }
 }
-        }
