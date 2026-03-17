@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace KriptoLibrary
+namespace CryptoLibrary
 {
     public static class ProtocolHelpers
     {
@@ -38,5 +38,35 @@ namespace KriptoLibrary
             digest.DoFinal(output, 0);
             return output;
         }
+
+        public static byte[] BuildHandshakeTranscript(
+        byte[] clientNonce, byte[] serverNonce,
+        byte[] clientEph, byte[] serverEph)
+        {
+            byte[] label = System.Text.Encoding.UTF8.GetBytes("WASM-AKE-V1");
+            // Canonical serialization (Label + N1 + N2 + PK1 + PK2)
+            return Combine(label, clientNonce, serverNonce, clientEph, serverEph);
+        }
+
+        private static byte[] Combine(params byte[][] arrays)
+        {
+            byte[] rv = new byte[arrays.Sum(a => a.Length)];
+            int offset = 0;
+            foreach (byte[] array in arrays)
+            {
+                Buffer.BlockCopy(array, 0, rv, offset, array.Length);
+                offset += array.Length;
+            }
+            return rv;
+        }
     }
+
+    public class HandshakeMessage
+    {
+        public Guid SessionId { get; set; }
+        public byte[] Nonce { get; set; } = Array.Empty<byte>();
+        public byte[] EphemeralPublicKey { get; set; } = Array.Empty<byte>();
+        public byte[]? Signature { get; set; } // Sadece ServerHello'da dolu gelir
+    }
+
 }

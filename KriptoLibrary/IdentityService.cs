@@ -21,6 +21,8 @@
         private readonly ECDomainParameters _domain;
         public bool HasSigningKey => _signingKeyPair != null;
         // SUNUCU ROLÜ: Kendi özel anahtarıyla imza atmak için kullanılır (Long-term identity)[cite: 1, 157].
+
+        private static readonly IdentityService StaticBobIdentity = new IdentityService(IdentityService.GenerateLongTermKeyPair());
         public IdentityService(AsymmetricCipherKeyPair signingKeyPair)
         {
             _curve = ECNamedCurveTable.GetByName("secp256r1");

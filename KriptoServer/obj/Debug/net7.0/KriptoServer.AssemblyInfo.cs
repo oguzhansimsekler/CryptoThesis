@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("KriptoServer")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+1deda2bb57dad966f67e60b1c83d4afa5fdde29c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c98e66ff32f73c8f2406d608579384ccfab978ba")]
 [assembly: System.Reflection.AssemblyProductAttribute("KriptoServer")]
 [assembly: System.Reflection.AssemblyTitleAttribute("KriptoServer")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -1,4 +1,4 @@
-﻿namespace KriptoLibrary
+﻿namespace CryptoLibrary
 {
     using CryptoLibrary;
     using System;
