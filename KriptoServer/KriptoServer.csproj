@@ -8,8 +8,8 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="7.0.5" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.2" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="10.0.2" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.20" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="7.0.20" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
   </ItemGroup>
 

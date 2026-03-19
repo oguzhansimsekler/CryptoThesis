@@ -1,10 +1,8 @@
-﻿@page "/"
+@page "/"
 @using CryptoLibrary
-@using KriptoLibrary
 @using Microsoft.AspNetCore.SignalR.Client
 @using System.Security.Cryptography
 @using System.Text.Json
-@inject NavigationManager NavManager
 @implements IAsyncDisposable
 
 <style>
@@ -44,33 +42,33 @@
 
 <div class="main-container container-fluid">
     <div class="row p-2 bg-dark text-white align-items-center" style="height: 60px;">
-        <div class="col-md-4"><h5>🛡️ CryptoThesis Lab</h5></div>
+        <div class="col-md-4"><h5>CryptoThesis Lab</h5></div>
         <div class="col-md-8 text-end">
             <div class="btn-group btn-group-sm shadow-sm">
-                <button class="btn @(CurrentMode == AppMode.Education ? "btn-primary" : "btn-outline-light")" @onclick="() => SetMode(AppMode.Education)">🎓 Eğitim</button>
-                <button class="btn @(CurrentMode == AppMode.Hacker ? "btn-danger" : "btn-outline-light")" @onclick="() => SetMode(AppMode.Hacker)">🕵️‍♂️ Hacker</button>
+                <button class="btn @(CurrentMode == AppMode.Education ? "btn-primary" : "btn-outline-light")" @onclick="() => SetMode(AppMode.Education)">Egitim</button>
+                <button class="btn @(CurrentMode == AppMode.Hacker ? "btn-danger" : "btn-outline-light")" @onclick="() => SetMode(AppMode.Hacker)">Hacker</button>
             </div>
         </div>
     </div>
 
     <div class="row content-row g-0">
         <div class="col-md-3 bg-white border-end p-3 shadow-sm">
-            <h6 class="text-primary fw-bold mb-3">👱‍♀️ Alice (Client)</h6>
+            <h6 class="text-primary fw-bold mb-3">Alice (Client)</h6>
             <div class="alert @(IsConnected ? "alert-success" : "alert-info") py-2 small mb-3">@AliceStatus</div>
-            <button class="btn btn-success btn-sm w-100 mb-3 shadow-sm" @onclick="StartHandshake" disabled="@IsHandshakeActive">🚀 Handshake Başlat</button>
+            <button class="btn btn-success btn-sm w-100 mb-3 shadow-sm" @onclick="StartHandshake" disabled="@IsHandshakeActive">Handshake Baslat</button>
             <hr />
-            <input type="text" class="form-control form-control-sm mb-2" placeholder="Güvenli mesaj..." @bind="PlainTextMsg" disabled="@(!IsConnected)" />
-            <button class="btn btn-primary btn-sm w-100 shadow-sm" @onclick="SendMessage" disabled="@(!IsConnected)">🔒 Şifrele ve Gönder</button>
+            <input type="text" class="form-control form-control-sm mb-2" placeholder="Guvenli mesaj..." @bind="PlainTextMsg" disabled="@(!IsConnected)" />
+            <button class="btn btn-primary btn-sm w-100 shadow-sm" @onclick="SendMessage" disabled="@(!IsConnected)">Sifrele ve Gonder</button>
         </div>
 
         <div class="col-md-6 p-3 d-flex flex-column" style="background-color: #111;">
-            <h6 class="text-danger border-bottom border-danger pb-2 mb-3">⚡ The Wire (Insecure)</h6>
+            <h6 class="text-danger border-bottom border-danger pb-2 mb-3">The Wire (Insecure)</h6>
             <div class="wire-scroll">
                 @foreach (var pkg in NetworkLog)
                 {
                     <div class="packet-box border @(pkg.IsTampered ? "border-danger" : "border-success") p-2 rounded shadow-sm">
                         <div class="d-flex justify-content-between text-success fw-bold small">
-                            <span>📦 #@pkg.SeqNum: @pkg.Type</span>
+                            <span>#@pkg.SeqNum: @pkg.Type</span>
                             <span class="text-muted x-small">@pkg.Size bytes</span>
                         </div>
                         <div class="text-light x-small text-break my-1" style="font-family: 'Courier New', Courier, monospace;">@pkg.JsonContent</div>
@@ -78,8 +76,8 @@
                         @if (CurrentMode == AppMode.Hacker && !pkg.IsProcessed)
                         {
                             <div class="mt-2 btn-group w-100">
-                                <button class="btn btn-xs btn-success py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => ForwardPacket(pkg))">✅ İlet</button>
-                                <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => TamperAndForward(pkg))">🔨 Boz & İlet</button>
+                                <button class="btn btn-xs btn-success py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => ForwardPacket(pkg))">Ilet</button>
+                                <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => TamperAndForward(pkg))">Boz ve Ilet</button>
                             </div>
                         }
                     </div>
@@ -88,13 +86,13 @@
         </div>
 
         <div class="col-md-3 bg-white border-start p-3 shadow-sm">
-            <h6 class="text-success fw-bold mb-3">👨 Bob (Server)</h6>
+            <h6 class="text-success fw-bold mb-3">Bob (Server)</h6>
             <div class="alert alert-info py-2 small mb-3">@BobStatus</div>
             <div style="flex: 1; overflow-y: auto;">
                 @foreach (var msg in BobMessages)
                 {
                     <div class="alert @(msg.IsError ? "alert-danger" : "alert-success") py-1 px-2 mb-2 small shadow-sm border-0">
-                        @(msg.IsError ? "❌" : "📩") @msg.Content
+                        @msg.Content
                     </div>
                 }
             </div>
@@ -112,131 +110,151 @@
     private List<NetworkPacket> NetworkLog = new();
     private List<BobMessage> BobMessages = new();
     private AppMode CurrentMode = AppMode.Education;
-    private string AliceStatus = "Hazır";
+    private string AliceStatus = "Hazir";
     private string BobStatus = "Beklemede";
-    private bool IsConnected = false;
-    private bool IsHandshakeActive = false;
+    private bool IsConnected;
+    private bool IsHandshakeActive;
     private string PlainTextMsg = "";
 
     protected override async Task OnInitializedAsync()
     {
-        hubConnection = new HubConnectionBuilder().WithUrl("https://localhost:7214/cryptohub").Build();
+        TrustedServerPublicKey = ProtocolIdentity.GetPinnedServerPublicKey();
 
-        // 1. EL SIKIŞMA PAKETLERİNİ DİNLE (Wire İzleyici)
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl("https://localhost:7214/cryptohub")
+            .Build();
+
         hubConnection.On<string, string, bool>("ReceiveHandshakePackage", async (type, json, isTampered) =>
         {
             LogPacket(type, json, isTampered);
 
-            // EĞİTİM MODU: Otomatik ilerle
             if (CurrentMode == AppMode.Education)
             {
-                var lastPkg = NetworkLog.Last();
+                NetworkPacket lastPkg = NetworkLog.Last();
                 await ForwardPacket(lastPkg);
             }
+
             StateHasChanged();
         });
 
-        // 2. VERİ PAKETLERİNİ DİNLE (Wire İzleyici)
-        hubConnection.On<string, bool>("ReceivePackageJson", async (json, isTampered) =>
-        {
-            LogPacket("Data", json, isTampered);
-
-            // EĞİTİM MODU: Otomatik olarak Bob'a ilet
-            if (CurrentMode == AppMode.Education)
-            {
-                var lastPkg = NetworkLog.Last();
-                await ForwardPacket(lastPkg);
-            }
-            StateHasChanged();
-        });
-
-        // 3. KİMLİK DOĞRULAMA FİNALİ (Alice'e özel sinyal)
-        hubConnection.On<string>("FinalizeServerHello", (json) =>
+        hubConnection.On<string>("FinalizeServerHello", json =>
         {
             ProcessServerHello(json);
             StateHasChanged();
         });
 
-        // 4. UI GÜNCELLEMELERİ (Bob'un farkındalığı)
         hubConnection.On<string, string>("UpdateHandshakeUI", (step, msg) =>
         {
             BobStatus = msg;
             if (step == "error")
             {
-                BobMessages.Insert(0, new BobMessage { Content = "🚨 Kritik Güvenlik Uyarısı!", IsError = true });
+                BobMessages.Insert(0, new BobMessage { Content = $"Kritik guvenlik uyarisi: {msg}", IsError = true });
             }
+
+            StateHasChanged();
+        });
+
+        hubConnection.On<DeliveryReport>("ReceiveDeliveryReport", report =>
+        {
+            ProcessDeliveryReport(report);
             StateHasChanged();
         });
 
         await hubConnection.StartAsync();
-        TrustedServerPublicKey = await hubConnection.InvokeAsync<byte[]>("GetServerPublicKey");
     }
 
     private async Task ForwardPacket(NetworkPacket pkg)
     {
-        if (pkg.IsProcessed) return;
+        if (pkg.IsProcessed)
+        {
+            return;
+        }
+
         pkg.IsProcessed = true;
 
         if (pkg.Type == "ClientHello")
+        {
             await hubConnection!.SendAsync("BobProcessClientHello", pkg.JsonContent, pkg.IsTampered);
+        }
         else if (pkg.Type == "ServerHello")
-            await hubConnection!.SendAsync("ForwardToAlice", pkg.JsonContent);
+        {
+            await hubConnection!.SendAsync("ForwardToAlice", pkg.JsonContent, pkg.IsTampered);
+        }
         else if (pkg.Type == "Data")
-            ProcessIncomingMessage(pkg.JsonContent, pkg.IsTampered); // Veriyi Bob'a işlet
+        {
+            await hubConnection!.SendAsync("RelayMessage", _currentSessionId, pkg.JsonContent, pkg.IsTampered);
+        }
     }
 
     private async Task TamperAndForward(NetworkPacket pkg)
     {
-        if (pkg.IsProcessed) return;
-        pkg.IsProcessed = true;
+        if (pkg.IsProcessed)
+        {
+            return;
+        }
 
-        if (pkg.Type == "ClientHello")
-            await hubConnection!.SendAsync("BobProcessClientHello", pkg.JsonContent, true);
-        else if (pkg.Type == "ServerHello")
-            await hubConnection!.SendAsync("TamperAndForward", pkg.JsonContent);
-        else if (pkg.Type == "Data")
-            ProcessIncomingMessage(pkg.JsonContent, true); // Veriyi bozarak Bob'a işlet
+        pkg.IsTampered = true;
+        await ForwardPacket(pkg);
     }
 
     private void ProcessServerHello(string json)
     {
-        var hello = JsonSerializer.Deserialize<HandshakeMessage>(json);
-        if (hello == null) return;
+        ServerHelloMessage? hello = JsonSerializer.Deserialize<ServerHelloMessage>(json);
+        if (hello == null || AliceSession == null || TrustedServerPublicKey == null)
+        {
+            return;
+        }
 
-        AliceStatus = "ServerHello doğrulanıyor...";
+        AliceStatus = "ServerHello dogrulaniyor...";
+
+        if (!TrustedServerPublicKey.SequenceEqual(hello.ServerIdentityPublicKey))
+        {
+            AliceStatus = "Server kimligi pinli anahtarla eslesmedi.";
+            IsHandshakeActive = false;
+            return;
+        }
+
         byte[] transcript = ProtocolHelpers.BuildHandshakeTranscript(
-            _lastAliceNonce, hello.Nonce, AliceSession!.MyEphemeralPub!, hello.EphemeralPublicKey);
+            _lastAliceNonce,
+            hello.ServerNonce,
+            AliceSession.MyEphemeralPub!,
+            hello.ServerEphemeralPublicKey,
+            hello.ServerIdentityPublicKey);
 
-        // İmzayı doğrula
-        bool isValid = AliceSession.Identity.VerifySignature(transcript, hello.Signature!);
+        bool isValid = AliceSession.Identity.VerifySignature(transcript, hello.Signature);
 
-        if (isValid)
+        if (!isValid)
         {
-            AliceSession.FinalizeHandshake(transcript, hello.EphemeralPublicKey);
-            AliceStatus = "✅ GÜVENLİ TÜNEL AKTİF";
-            IsConnected = true; // Şifrele ve Gönder Butonu burada aktifleşir
+            AliceStatus = "Imza hatasi. Müdahale saptandi.";
+            BobStatus = "Bob tarafina ulasmadan paket reddedildi.";
+            IsHandshakeActive = false;
+            return;
         }
-        else
-        {
-            AliceStatus = "❌ İMZA HATASI! Müdahale Saptandı.";
-        }
+
+        AliceSession.FinalizeHandshake(
+            hello.ServerIdentityPublicKey,
+            hello.ServerEphemeralPublicKey,
+            _lastAliceNonce,
+            hello.ServerNonce);
+
+        AliceStatus = "Guvenli tunel aktif";
+        BobStatus = "Oturum anahtari iki ucta da turetildi.";
+        IsConnected = true;
         IsHandshakeActive = false;
-        StateHasChanged();
     }
 
-    private void ProcessIncomingMessage(string json, bool isTampered)
+    private void ProcessDeliveryReport(DeliveryReport report)
     {
-        if (isTampered)
+        if (report.Success)
         {
-            BobMessages.Insert(0, new BobMessage { Content = "❌ GÜVENLİK HATASI: Bütünlük Bozulmuş! (Integrity Fail)", IsError = true });
-            BobStatus = "⚠️ Müdahale Saptandı!";
+            BobMessages.Insert(0, new BobMessage { Content = report.StatusMessage, IsError = false });
+            BobStatus = "Veri dogrulandi ve cozuldu";
         }
         else
         {
-            BobMessages.Insert(0, new BobMessage { Content = "📩 Mesaj başarıyla deşifre edildi.", IsError = false });
-            BobStatus = "✅ Veri Alındı";
+            BobMessages.Insert(0, new BobMessage { Content = report.StatusMessage, IsError = true });
+            BobStatus = "Paket reddedildi";
         }
-        StateHasChanged();
     }
 
     private async Task StartHandshake()
@@ -245,17 +263,18 @@
         IsConnected = false;
         NetworkLog.Clear();
         BobMessages.Clear();
-        AliceStatus = "ClientHello hazırlanıyor...";
+        AliceStatus = "ClientHello hazirlaniyor...";
+        BobStatus = "Beklemede";
 
         _currentSessionId = Guid.NewGuid();
         _lastAliceNonce = RandomNumberGenerator.GetBytes(16);
         AliceSession = new CryptoProtocolSession(new IdentityService(TrustedServerPublicKey!), "Client");
 
-        var clientHello = new HandshakeMessage
+        var clientHello = new ClientHelloMessage
         {
             SessionId = _currentSessionId,
-            Nonce = _lastAliceNonce,
-            EphemeralPublicKey = AliceSession.MyEphemeralPub!
+            ClientNonce = _lastAliceNonce,
+            ClientEphemeralPublicKey = AliceSession.MyEphemeralPub!
         };
 
         await hubConnection!.SendAsync("PostClientHello", clientHello);
@@ -263,12 +282,21 @@
 
     private async Task SendMessage()
     {
-        if (AliceSession?.Channel == null) return;
-        var package = AliceSession.Channel.Encrypt(PlainTextMsg);
+        if (AliceSession?.Channel == null || string.IsNullOrWhiteSpace(PlainTextMsg))
+        {
+            return;
+        }
 
-        // Sunucuya 3 parametreli gönderiyoruz: sessionId, json, isTampered
-        await hubConnection!.SendAsync("RelayMessage", _currentSessionId, JsonSerializer.Serialize(package), false);
-        PlainTextMsg = "";
+        SecurePackage package = AliceSession.Channel.Encrypt(PlainTextMsg);
+        string json = JsonSerializer.Serialize(package);
+        LogPacket("Data", json, false);
+
+        if (CurrentMode == AppMode.Education)
+        {
+            await ForwardPacket(NetworkLog.Last());
+        }
+
+        PlainTextMsg = string.Empty;
     }
 
     private void LogPacket(string type, string json, bool tampered)
@@ -285,8 +313,34 @@
     }
 
     private void SetMode(AppMode mode) => CurrentMode = mode;
-    public enum AppMode { Education, Hacker }
-    public class NetworkPacket { public string Type { get; set; } = ""; public string JsonContent { get; set; } = ""; public int Size { get; set; } public int SeqNum { get; set; } public bool IsTampered { get; set; } public bool IsProcessed { get; set; } }
-    public class BobMessage { public string Content { get; set; } = ""; public bool IsError { get; set; } }
-    public async ValueTask DisposeAsync() { if (hubConnection is not null) await hubConnection.DisposeAsync(); }
+
+    public enum AppMode
+    {
+        Education,
+        Hacker
+    }
+
+    public class NetworkPacket
+    {
+        public string Type { get; set; } = "";
+        public string JsonContent { get; set; } = "";
+        public int Size { get; set; }
+        public int SeqNum { get; set; }
+        public bool IsTampered { get; set; }
+        public bool IsProcessed { get; set; }
+    }
+
+    public class BobMessage
+    {
+        public string Content { get; set; } = "";
+        public bool IsError { get; set; }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
 }

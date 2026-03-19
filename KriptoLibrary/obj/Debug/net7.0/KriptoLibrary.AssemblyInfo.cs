@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("KriptoLibrary")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c98e66ff32f73c8f2406d608579384ccfab978ba")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+394a99e9bcf5746aea129d45b257799e5333214e")]
 [assembly: System.Reflection.AssemblyProductAttribute("KriptoLibrary")]
 [assembly: System.Reflection.AssemblyTitleAttribute("KriptoLibrary")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

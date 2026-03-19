@@ -10,11 +10,15 @@ build_property._SupportedPlatformList = Linux,macOS,Windows
 build_property.RootNamespace = CryptoLibrary
 build_property.RootNamespace = CryptoLibrary
 build_property.ProjectDir = C:\Users\OguzHan\source\repos\CryptoThesis\CryptoLibrary\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
 build_property.RazorLangVersion = 7.0
 build_property.SupportLocalizedComponentNames = 
 build_property.GenerateRazorMetadataSourceChecksumAttributes = 
 build_property.MSBuildProjectDirectory = C:\Users\OguzHan\source\repos\CryptoThesis\CryptoLibrary
 build_property._RazorSourceGeneratorDebug = 
+build_property.EffectiveAnalysisLevelStyle = 7.0
+build_property.EnableCodeStyleSeverity = 
 
 [C:/Users/OguzHan/source/repos/CryptoThesis/CryptoLibrary/App.razor]
 build_metadata.AdditionalFiles.TargetPath = QXBwLnJhem9y

@@ -1,29 +1,30 @@
-﻿using Org.BouncyCastle.Crypto.Digests;
+using Org.BouncyCastle.Crypto.Digests;
 using System;
 using System.Buffers.Binary;
-using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace CryptoLibrary
 {
     public static class ProtocolHelpers
     {
+        public static byte[] GetAnonymousIdentityPlaceholder() => new byte[65];
+
         public static byte[] CalculateCanonicalTranscriptHash(
-            byte[] clientId, byte[] serverId,
-            byte[] clientEph, byte[] serverEph)
+            byte[] clientId,
+            byte[] serverId,
+            byte[] clientEph,
+            byte[] serverEph,
+            byte[] clientNonce,
+            byte[] serverNonce)
         {
             var digest = new Sha256Digest();
-
-            // Domain Separation
             byte[] domain = Encoding.ASCII.GetBytes("CTPK-HS1");
             digest.BlockUpdate(domain, 0, domain.Length);
 
             void UpdateWithLength(byte[] data)
             {
                 byte[] lenBytes = new byte[2];
-                // BigEndian Length Prefix
                 BinaryPrimitives.WriteUInt16BigEndian(lenBytes, (ushort)data.Length);
                 digest.BlockUpdate(lenBytes, 0, lenBytes.Length);
                 digest.BlockUpdate(data, 0, data.Length);
@@ -33,6 +34,8 @@ namespace CryptoLibrary
             UpdateWithLength(serverId);
             UpdateWithLength(clientEph);
             UpdateWithLength(serverEph);
+            UpdateWithLength(clientNonce);
+            UpdateWithLength(serverNonce);
 
             byte[] output = new byte[32];
             digest.DoFinal(output, 0);
@@ -40,33 +43,54 @@ namespace CryptoLibrary
         }
 
         public static byte[] BuildHandshakeTranscript(
-        byte[] clientNonce, byte[] serverNonce,
-        byte[] clientEph, byte[] serverEph)
+            byte[] clientNonce,
+            byte[] serverNonce,
+            byte[] clientEph,
+            byte[] serverEph,
+            byte[] serverIdentityPub)
         {
-            byte[] label = System.Text.Encoding.UTF8.GetBytes("WASM-AKE-V1");
-            // Canonical serialization (Label + N1 + N2 + PK1 + PK2)
-            return Combine(label, clientNonce, serverNonce, clientEph, serverEph);
+            byte[] label = Encoding.UTF8.GetBytes("WASM-AKE-V2");
+            return CombineWithLength(label, clientNonce, serverNonce, clientEph, serverEph, serverIdentityPub);
         }
 
-        private static byte[] Combine(params byte[][] arrays)
+        private static byte[] CombineWithLength(params byte[][] arrays)
         {
-            byte[] rv = new byte[arrays.Sum(a => a.Length)];
+            int totalLength = arrays.Sum(a => a.Length + 2);
+            byte[] rv = new byte[totalLength];
             int offset = 0;
+
             foreach (byte[] array in arrays)
             {
+                BinaryPrimitives.WriteUInt16BigEndian(rv.AsSpan(offset, 2), (ushort)array.Length);
+                offset += 2;
                 Buffer.BlockCopy(array, 0, rv, offset, array.Length);
                 offset += array.Length;
             }
+
             return rv;
         }
     }
 
-    public class HandshakeMessage
+    public class ClientHelloMessage
     {
         public Guid SessionId { get; set; }
-        public byte[] Nonce { get; set; } = Array.Empty<byte>();
-        public byte[] EphemeralPublicKey { get; set; } = Array.Empty<byte>();
-        public byte[]? Signature { get; set; } // Sadece ServerHello'da dolu gelir
+        public byte[] ClientNonce { get; set; } = Array.Empty<byte>();
+        public byte[] ClientEphemeralPublicKey { get; set; } = Array.Empty<byte>();
     }
 
+    public class ServerHelloMessage
+    {
+        public Guid SessionId { get; set; }
+        public byte[] ServerNonce { get; set; } = Array.Empty<byte>();
+        public byte[] ServerEphemeralPublicKey { get; set; } = Array.Empty<byte>();
+        public byte[] ServerIdentityPublicKey { get; set; } = Array.Empty<byte>();
+        public byte[] Signature { get; set; } = Array.Empty<byte>();
+    }
+
+    public class DeliveryReport
+    {
+        public bool Success { get; set; }
+        public string StatusMessage { get; set; } = string.Empty;
+        public string? Plaintext { get; set; }
+    }
 }
