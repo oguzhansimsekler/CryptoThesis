@@ -1,0 +1,161 @@
+@page "/measurements"
+
+<PageTitle>Measurements</PageTitle>
+
+<style>
+    .chart-shell {
+        border: 1px solid #d7dde5;
+        border-radius: 12px;
+        background: linear-gradient(180deg, #fbfcfe 0%, #f1f5f9 100%);
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 1rem;
+        align-items: end;
+        min-height: 320px;
+        padding-top: 1rem;
+        border-bottom: 2px solid #94a3b8;
+        border-left: 2px solid #94a3b8;
+        position: relative;
+    }
+
+    .chart-grid::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 2px 0;
+        background-image:
+            linear-gradient(to top, rgba(148, 163, 184, 0.25) 1px, transparent 1px);
+        background-size: 100% 20%;
+        pointer-events: none;
+    }
+
+    .chart-col {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: end;
+        min-height: 300px;
+    }
+
+    .chart-value {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #1d4ed8;
+        margin-bottom: 0.4rem;
+    }
+
+    .chart-bar {
+        width: 58px;
+        border-radius: 10px 10px 0 0;
+        background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+        box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+    }
+
+    .chart-label {
+        margin-top: 0.8rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-align: center;
+        color: #334155;
+    }
+
+    .chart-note {
+        margin-top: 0.75rem;
+        font-size: 0.85rem;
+        color: #475569;
+    }
+</style>
+
+<h1>Performance Measurements</h1>
+
+<p>
+    Bu sayfa, repo icindeki <code>KriptoMeasurements</code> araci ile uretilen son benchmark degerlerini gosterir.
+    Olcumler <code>net7.0</code> ortaminda 50 warmup ve 1000 olcum iterasyonu ile alinmistir.
+</p>
+
+<div class="chart-shell">
+    <h5 class="mb-3">Latency Comparison (Average ms)</h5>
+    <div class="chart-grid">
+        @foreach (var row in Rows)
+        {
+            <div class="chart-col">
+                <div class="chart-value">@row.AverageMs</div>
+                <div class="chart-bar" style="height:@($"{GetBarHeight(row.AverageValue)}px")"></div>
+                <div class="chart-label">@row.ShortLabel</div>
+            </div>
+        }
+    </div>
+    <div class="chart-note">
+        Grafik, ortalama gecikme degerlerini gosterir. En yuksek gecikme su anda <strong>Complete Secure Handshake</strong>
+        operasyonundadir; en dusuk gecikme ise <strong>HKDF Key Derivation</strong> asamasindadir.
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-bordered align-middle">
+        <thead class="table-dark">
+            <tr>
+                <th>Operation</th>
+                <th>Average (ms)</th>
+                <th>Median (ms)</th>
+                <th>Min (ms)</th>
+                <th>Max (ms)</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Rows)
+            {
+                <tr>
+                    <td>@row.Operation</td>
+                    <td>@row.AverageMs</td>
+                    <td>@row.MedianMs</td>
+                    <td>@row.MinMs</td>
+                    <td>@row.MaxMs</td>
+                    <td>@row.Notes</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="alert alert-info mt-3">
+    Bu sayilari yeniden uretmek icin terminalde su komutu calistirabilirsiniz:
+    <code>dotnet run --project KriptoMeasurements\KriptoMeasurements.csproj --no-restore</code>
+</div>
+
+@code {
+    private readonly List<MeasurementRow> Rows = new()
+    {
+        new("secp256r1 Key Generation", "Key Gen", 0.6719, "0.6719", "0.5776", "0.4320", "3.1026", "Ephemeral ECC anahtar cifti uretimi"),
+        new("HKDF Key Derivation", "HKDF", 0.0052, "0.0052", "0.0050", "0.0044", "0.0168", "Transcript bagli oturum anahtari turetimi"),
+        new("AES-256-GCM Encryption (1 KB)", "AES Enc", 0.0200, "0.0200", "0.0196", "0.0187", "0.1709", "1 KB veri sifreleme"),
+        new("AES-256-GCM Decryption (1 KB)", "AES Dec", 0.0410, "0.0410", "0.0398", "0.0372", "0.2187", "1 KB veri cozumleme ve tag kontrolu"),
+        new("Complete Secure Handshake", "Handshake", 4.0278, "4.0278", "3.9190", "2.9164", "13.8665", "ECDH + HKDF ile uc-tan-uca oturum kurulumu")
+    };
+
+    private double MaxAverage => Rows.Max(x => x.AverageValue);
+
+    private double GetBarHeight(double value)
+    {
+        const double maxHeight = 230d;
+        const double minHeight = 12d;
+        return minHeight + ((value / MaxAverage) * maxHeight);
+    }
+
+    private record MeasurementRow(
+        string Operation,
+        string ShortLabel,
+        double AverageValue,
+        string AverageMs,
+        string MedianMs,
+        string MinMs,
+        string MaxMs,
+        string Notes);
+}

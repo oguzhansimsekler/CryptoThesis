@@ -1,6 +1,5 @@
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\bin\Debug\net7.0\appsettings.Development.json
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\bin\Debug\net7.0\appsettings.json
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\bin\Debug\net7.0\KriptoServer.exe
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\bin\Debug\net7.0\KriptoServer.deps.json
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\bin\Debug\net7.0\KriptoServer.runtimeconfig.json
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\bin\Debug\net7.0\KriptoServer.dll

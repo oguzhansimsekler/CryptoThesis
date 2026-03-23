@@ -11,6 +11,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KriptoClient", "KriptoClien
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KriptoLibrary.Tests", "KriptoLibrary.Tests\KriptoLibrary.Tests.csproj", "{74346F2B-8ACD-4BAA-AEF8-AD89B077F66A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KriptoIntegrationTests", "KriptoIntegrationTests\KriptoIntegrationTests.csproj", "{5EA683B1-A3B2-4344-81FD-75B70A6383D2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KriptoMeasurements", "KriptoMeasurements\KriptoMeasurements.csproj", "{E063307F-1355-4932-996D-B3C5867DA819}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +37,14 @@ Global
 		{74346F2B-8ACD-4BAA-AEF8-AD89B077F66A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{74346F2B-8ACD-4BAA-AEF8-AD89B077F66A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{74346F2B-8ACD-4BAA-AEF8-AD89B077F66A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5EA683B1-A3B2-4344-81FD-75B70A6383D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5EA683B1-A3B2-4344-81FD-75B70A6383D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5EA683B1-A3B2-4344-81FD-75B70A6383D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5EA683B1-A3B2-4344-81FD-75B70A6383D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E063307F-1355-4932-996D-B3C5867DA819}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E063307F-1355-4932-996D-B3C5867DA819}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E063307F-1355-4932-996D-B3C5867DA819}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E063307F-1355-4932-996D-B3C5867DA819}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

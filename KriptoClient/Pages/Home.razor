@@ -20,7 +20,7 @@
     }
 
     .wire-scroll {
-        height: calc(100vh - 180px);
+        height: calc(100vh - 240px);
         overflow-y: auto;
         background-color: #000;
         padding: 10px;
@@ -38,6 +38,46 @@
         font-size: 0.7rem;
         color: #888;
     }
+
+    .stepper-bar {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+    }
+
+    .step-card {
+        border-radius: 10px;
+        padding: 10px;
+        border: 1px solid #ced4da;
+        background: #fff;
+        min-height: 68px;
+    }
+
+    .step-card.active {
+        border-color: #0d6efd;
+        background: #e8f1ff;
+    }
+
+    .step-card.done {
+        border-color: #198754;
+        background: #eaf7ef;
+    }
+
+    .step-card.error {
+        border-color: #dc3545;
+        background: #fdecec;
+    }
+
+    .step-title {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
+    .step-desc {
+        font-size: 0.75rem;
+        margin-top: 4px;
+    }
 </style>
 
 <div class="main-container container-fluid">
@@ -51,12 +91,35 @@
         </div>
     </div>
 
-    <div class="row content-row g-0">
+    <div class="row px-3 pt-3">
+        <div class="col-12">
+            <div class="stepper-bar">
+                @foreach (var step in StepperSteps)
+                {
+                    <div class="step-card @GetStepCss(step.Key)">
+                        <div class="step-title">@step.Title</div>
+                        <div class="step-desc">@step.Description</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="row content-row g-0 mt-2">
         <div class="col-md-3 bg-white border-end p-3 shadow-sm">
             <h6 class="text-primary fw-bold mb-3">Alice (Client)</h6>
             <div class="alert @(IsConnected ? "alert-success" : "alert-info") py-2 small mb-3">@AliceStatus</div>
-            <button class="btn btn-success btn-sm w-100 mb-3 shadow-sm" @onclick="StartHandshake" disabled="@IsHandshakeActive">Handshake Baslat</button>
+            <div class="d-grid gap-2 mb-3">
+                <button class="btn btn-success btn-sm shadow-sm" @onclick="StartHandshake" disabled="@IsHandshakeActive">Handshake Baslat</button>
+                <button class="btn btn-outline-secondary btn-sm shadow-sm" @onclick="ResetLab">Yeniden Basla</button>
+            </div>
             <hr />
+            <div class="small text-muted mb-2">Attack Guide</div>
+            <div class="small mb-3">
+                <div>`ClientHello`: invalid public key</div>
+                <div>`ServerHello`: signature tamper, pinned key mismatch</div>
+                <div>`Data`: tag tamper, out-of-order, replay</div>
+            </div>
             <input type="text" class="form-control form-control-sm mb-2" placeholder="Guvenli mesaj..." @bind="PlainTextMsg" disabled="@(!IsConnected)" />
             <button class="btn btn-primary btn-sm w-100 shadow-sm" @onclick="SendMessage" disabled="@(!IsConnected)">Sifrele ve Gonder</button>
         </div>
@@ -71,13 +134,34 @@
                             <span>#@pkg.SeqNum: @pkg.Type</span>
                             <span class="text-muted x-small">@pkg.Size bytes</span>
                         </div>
+
+                        @if (!string.IsNullOrWhiteSpace(pkg.AttackLabel))
+                        {
+                            <div class="badge @(pkg.IsTampered ? "bg-warning text-dark" : "bg-success") mb-2">@pkg.AttackLabel</div>
+                        }
+
                         <div class="text-light x-small text-break my-1" style="font-family: 'Courier New', Courier, monospace;">@pkg.JsonContent</div>
 
                         @if (CurrentMode == AppMode.Hacker && !pkg.IsProcessed)
                         {
                             <div class="mt-2 btn-group w-100">
                                 <button class="btn btn-xs btn-success py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => ForwardPacket(pkg))">Ilet</button>
-                                <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => TamperAndForward(pkg))">Boz ve Ilet</button>
+
+                                @if (pkg.Type == "ClientHello")
+                                {
+                                    <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.InvalidClientKey))">Public Key Boz</button>
+                                }
+                                else if (pkg.Type == "ServerHello")
+                                {
+                                    <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.SignatureTamper))">Imzayi Boz</button>
+                                    <button class="btn btn-xs btn-warning py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.PinnedKeyMismatch))">Pinned Key Boz</button>
+                                }
+                                else if (pkg.Type == "Data")
+                                {
+                                    <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.TagTamper))">Tag Boz</button>
+                                    <button class="btn btn-xs btn-warning py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.OutOfOrder))">Sira Boz</button>
+                                    <button class="btn btn-xs btn-secondary py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.Replay))">Replay</button>
+                                }
                             </div>
                         }
                     </div>
@@ -88,6 +172,15 @@
         <div class="col-md-3 bg-white border-start p-3 shadow-sm">
             <h6 class="text-success fw-bold mb-3">Bob (Server)</h6>
             <div class="alert alert-info py-2 small mb-3">@BobStatus</div>
+
+            <div class="small text-muted mb-2">Security Events</div>
+            <div class="mb-3" style="max-height: 140px; overflow-y: auto;">
+                @foreach (var evt in SecurityEvents)
+                {
+                    <div class="border rounded px-2 py-1 mb-1 small @(evt.IsError ? "bg-light border-danger text-danger" : "bg-light border-success text-success")">@evt.Content</div>
+                }
+            </div>
+
             <div style="flex: 1; overflow-y: auto;">
                 @foreach (var msg in BobMessages)
                 {
@@ -101,6 +194,15 @@
 </div>
 
 @code {
+    private readonly List<ProtocolStep> StepperSteps = new()
+    {
+        new("clienthello", "ClientHello", "Alice ephemeral key ve nonce gonderir"),
+        new("serverhello", "ServerHello", "Bob imzali yanit ve kimlik anahtarini gonderir"),
+        new("verify", "Verify", "Alice imzayi ve pinned key eslesmesini dogrular"),
+        new("derive", "Key Derivation", "Iki uc da ECDH + HKDF ile session key turetir"),
+        new("data", "Secure Data", "AES-GCM ile veri iletilir ve kontrol edilir")
+    };
+
     private CryptoProtocolSession? AliceSession;
     private HubConnection? hubConnection;
     private byte[]? TrustedServerPublicKey;
@@ -109,12 +211,15 @@
 
     private List<NetworkPacket> NetworkLog = new();
     private List<BobMessage> BobMessages = new();
+    private List<SecurityEvent> SecurityEvents = new();
     private AppMode CurrentMode = AppMode.Education;
     private string AliceStatus = "Hazir";
     private string BobStatus = "Beklemede";
     private bool IsConnected;
     private bool IsHandshakeActive;
     private string PlainTextMsg = "";
+    private string CurrentStep = "clienthello";
+    private string? FailedStep;
 
     protected override async Task OnInitializedAsync()
     {
@@ -127,6 +232,15 @@
         hubConnection.On<string, string, bool>("ReceiveHandshakePackage", async (type, json, isTampered) =>
         {
             LogPacket(type, json, isTampered);
+
+            if (type == "ClientHello")
+            {
+                CurrentStep = "serverhello";
+            }
+            else if (type == "ServerHello")
+            {
+                CurrentStep = "verify";
+            }
 
             if (CurrentMode == AppMode.Education)
             {
@@ -146,8 +260,11 @@
         hubConnection.On<string, string>("UpdateHandshakeUI", (step, msg) =>
         {
             BobStatus = msg;
+            SecurityEvents.Insert(0, new SecurityEvent { Content = msg, IsError = step == "error" });
+
             if (step == "error")
             {
+                FailedStep ??= CurrentStep;
                 BobMessages.Insert(0, new BobMessage { Content = $"Kritik guvenlik uyarisi: {msg}", IsError = true });
             }
 
@@ -171,30 +288,68 @@
         }
 
         pkg.IsProcessed = true;
+        pkg.AttackLabel = "Normal";
 
         if (pkg.Type == "ClientHello")
         {
-            await hubConnection!.SendAsync("BobProcessClientHello", pkg.JsonContent, pkg.IsTampered);
+            await hubConnection!.SendAsync("BobProcessClientHello", pkg.JsonContent, "None");
         }
         else if (pkg.Type == "ServerHello")
         {
-            await hubConnection!.SendAsync("ForwardToAlice", pkg.JsonContent, pkg.IsTampered);
+            await hubConnection!.SendAsync("ForwardToAlice", pkg.JsonContent, "None");
         }
         else if (pkg.Type == "Data")
         {
-            await hubConnection!.SendAsync("RelayMessage", _currentSessionId, pkg.JsonContent, pkg.IsTampered);
+            CurrentStep = "data";
+            await hubConnection!.SendAsync("RelayMessage", _currentSessionId, pkg.JsonContent, "None");
         }
     }
 
-    private async Task TamperAndForward(NetworkPacket pkg)
+    private async Task AttackAndForward(NetworkPacket pkg, AttackAction attack)
     {
         if (pkg.IsProcessed)
         {
             return;
         }
 
+        pkg.IsProcessed = true;
         pkg.IsTampered = true;
-        await ForwardPacket(pkg);
+        pkg.AttackLabel = GetAttackLabel(attack);
+        SecurityEvents.Insert(0, new SecurityEvent { Content = $"Attack injected: {pkg.AttackLabel}", IsError = true });
+
+        if (pkg.Type == "ClientHello" && attack == AttackAction.InvalidClientKey)
+        {
+            FailedStep = "serverhello";
+            await hubConnection!.SendAsync("BobProcessClientHello", pkg.JsonContent, "InvalidClientKey");
+            return;
+        }
+
+        if (pkg.Type == "ServerHello")
+        {
+            FailedStep = "verify";
+            string mode = attack == AttackAction.PinnedKeyMismatch ? "PinnedKeyMismatch" : "SignatureTamper";
+            await hubConnection!.SendAsync("ForwardToAlice", pkg.JsonContent, mode);
+            return;
+        }
+
+        if (pkg.Type == "Data" && attack == AttackAction.Replay)
+        {
+            CurrentStep = "data";
+            await hubConnection!.SendAsync("RelayMessage", _currentSessionId, pkg.JsonContent, "None");
+            LogPacket("Data", pkg.JsonContent, true, "Replay copy");
+            NetworkLog.Last().IsProcessed = true;
+            FailedStep = "data";
+            await hubConnection!.SendAsync("RelayMessage", _currentSessionId, pkg.JsonContent, "None");
+            return;
+        }
+
+        if (pkg.Type == "Data")
+        {
+            CurrentStep = "data";
+            FailedStep = "data";
+            string mode = attack == AttackAction.OutOfOrder ? "OutOfOrder" : "TagTamper";
+            await hubConnection!.SendAsync("RelayMessage", _currentSessionId, pkg.JsonContent, mode);
+        }
     }
 
     private void ProcessServerHello(string json)
@@ -206,10 +361,13 @@
         }
 
         AliceStatus = "ServerHello dogrulaniyor...";
+        CurrentStep = "verify";
 
         if (!TrustedServerPublicKey.SequenceEqual(hello.ServerIdentityPublicKey))
         {
             AliceStatus = "Server kimligi pinli anahtarla eslesmedi.";
+            SecurityEvents.Insert(0, new SecurityEvent { Content = "Pinned key mismatch detected on client.", IsError = true });
+            FailedStep = "verify";
             IsHandshakeActive = false;
             return;
         }
@@ -225,12 +383,15 @@
 
         if (!isValid)
         {
-            AliceStatus = "Imza hatasi. Müdahale saptandi.";
+            AliceStatus = "Imza hatasi. Mudahale saptandi.";
             BobStatus = "Bob tarafina ulasmadan paket reddedildi.";
+            SecurityEvents.Insert(0, new SecurityEvent { Content = "ECDSA signature verification failed.", IsError = true });
+            FailedStep = "verify";
             IsHandshakeActive = false;
             return;
         }
 
+        CurrentStep = "derive";
         AliceSession.FinalizeHandshake(
             hello.ServerIdentityPublicKey,
             hello.ServerEphemeralPublicKey,
@@ -239,32 +400,37 @@
 
         AliceStatus = "Guvenli tunel aktif";
         BobStatus = "Oturum anahtari iki ucta da turetildi.";
+        SecurityEvents.Insert(0, new SecurityEvent { Content = "Handshake completed and session key derived.", IsError = false });
+        CurrentStep = "data";
+        FailedStep = null;
         IsConnected = true;
         IsHandshakeActive = false;
     }
 
     private void ProcessDeliveryReport(DeliveryReport report)
     {
+        CurrentStep = "data";
+
         if (report.Success)
         {
             BobMessages.Insert(0, new BobMessage { Content = report.StatusMessage, IsError = false });
             BobStatus = "Veri dogrulandi ve cozuldu";
+            SecurityEvents.Insert(0, new SecurityEvent { Content = report.StatusMessage, IsError = false });
         }
         else
         {
             BobMessages.Insert(0, new BobMessage { Content = report.StatusMessage, IsError = true });
             BobStatus = "Paket reddedildi";
+            SecurityEvents.Insert(0, new SecurityEvent { Content = report.StatusMessage, IsError = true });
+            FailedStep ??= "data";
         }
     }
 
     private async Task StartHandshake()
     {
+        ResetLab();
         IsHandshakeActive = true;
-        IsConnected = false;
-        NetworkLog.Clear();
-        BobMessages.Clear();
         AliceStatus = "ClientHello hazirlaniyor...";
-        BobStatus = "Beklemede";
 
         _currentSessionId = Guid.NewGuid();
         _lastAliceNonce = RandomNumberGenerator.GetBytes(16);
@@ -278,6 +444,24 @@
         };
 
         await hubConnection!.SendAsync("PostClientHello", clientHello);
+    }
+
+    private void ResetLab()
+    {
+        IsHandshakeActive = false;
+        IsConnected = false;
+        AliceSession = null;
+        _currentSessionId = Guid.Empty;
+        _lastAliceNonce = Array.Empty<byte>();
+        PlainTextMsg = string.Empty;
+        NetworkLog.Clear();
+        BobMessages.Clear();
+        SecurityEvents.Clear();
+        AliceStatus = "Hazir";
+        BobStatus = "Beklemede";
+        CurrentStep = "clienthello";
+        FailedStep = null;
+        StateHasChanged();
     }
 
     private async Task SendMessage()
@@ -299,7 +483,7 @@
         PlainTextMsg = string.Empty;
     }
 
-    private void LogPacket(string type, string json, bool tampered)
+    private void LogPacket(string type, string json, bool tampered, string attackLabel = "")
     {
         NetworkLog.Add(new NetworkPacket
         {
@@ -308,9 +492,44 @@
             Size = json.Length,
             SeqNum = NetworkLog.Count + 1,
             IsTampered = tampered,
-            IsProcessed = false
+            IsProcessed = false,
+            AttackLabel = attackLabel
         });
     }
+
+    private string GetStepCss(string key)
+    {
+        if (FailedStep == key)
+        {
+            return "error";
+        }
+
+        int currentIndex = StepperSteps.FindIndex(x => x.Key == CurrentStep);
+        int stepIndex = StepperSteps.FindIndex(x => x.Key == key);
+
+        if (stepIndex < currentIndex)
+        {
+            return "done";
+        }
+
+        if (stepIndex == currentIndex)
+        {
+            return "active";
+        }
+
+        return string.Empty;
+    }
+
+    private static string GetAttackLabel(AttackAction attack) => attack switch
+    {
+        AttackAction.InvalidClientKey => "Invalid Public Key",
+        AttackAction.SignatureTamper => "Signature Tamper",
+        AttackAction.PinnedKeyMismatch => "Pinned Key Mismatch",
+        AttackAction.TagTamper => "Tag Tamper",
+        AttackAction.OutOfOrder => "Out-of-Order",
+        AttackAction.Replay => "Replay Attack",
+        _ => "Normal"
+    };
 
     private void SetMode(AppMode mode) => CurrentMode = mode;
 
@@ -320,6 +539,18 @@
         Hacker
     }
 
+    public enum AttackAction
+    {
+        InvalidClientKey,
+        SignatureTamper,
+        PinnedKeyMismatch,
+        TagTamper,
+        OutOfOrder,
+        Replay
+    }
+
+    public record ProtocolStep(string Key, string Title, string Description);
+
     public class NetworkPacket
     {
         public string Type { get; set; } = "";
@@ -328,9 +559,16 @@
         public int SeqNum { get; set; }
         public bool IsTampered { get; set; }
         public bool IsProcessed { get; set; }
+        public string AttackLabel { get; set; } = "";
     }
 
     public class BobMessage
+    {
+        public string Content { get; set; } = "";
+        public bool IsError { get; set; }
+    }
+
+    public class SecurityEvent
     {
         public string Content { get; set; } = "";
         public bool IsError { get; set; }

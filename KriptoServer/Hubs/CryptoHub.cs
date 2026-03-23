@@ -23,7 +23,7 @@ namespace KriptoServer.Hubs
             await Clients.Caller.SendAsync("UpdateHandshakeUI", "pending", "Bob: ClientHello alindi, dogrulama yapiliyor...");
         }
 
-        public async Task BobProcessClientHello(string json, bool isTampered)
+        public async Task BobProcessClientHello(string json, string attackMode)
         {
             var clientHello = JsonSerializer.Deserialize<ClientHelloMessage>(json);
             if (clientHello == null)
@@ -33,7 +33,7 @@ namespace KriptoServer.Hubs
 
             try
             {
-                if (isTampered && clientHello.ClientEphemeralPublicKey.Length > 0)
+                if (attackMode == "InvalidClientKey" && clientHello.ClientEphemeralPublicKey.Length > 0)
                 {
                     clientHello.ClientEphemeralPublicKey[0] ^= 0xFF;
                 }
@@ -83,9 +83,9 @@ namespace KriptoServer.Hubs
             }
         }
 
-        public async Task ForwardToAlice(string json, bool isTampered)
+        public async Task ForwardToAlice(string json, string attackMode)
         {
-            if (!isTampered)
+            if (attackMode == "None")
             {
                 await Clients.Caller.SendAsync("FinalizeServerHello", json);
                 return;
@@ -98,15 +98,19 @@ namespace KriptoServer.Hubs
                 return;
             }
 
-            if (serverHello.Signature.Length > 0)
+            if (attackMode == "SignatureTamper" && serverHello.Signature.Length > 0)
             {
                 serverHello.Signature[0] ^= 0xFF;
+            }
+            else if (attackMode == "PinnedKeyMismatch" && serverHello.ServerIdentityPublicKey.Length > 0)
+            {
+                serverHello.ServerIdentityPublicKey[0] ^= 0xFF;
             }
 
             await Clients.Caller.SendAsync("FinalizeServerHello", JsonSerializer.Serialize(serverHello));
         }
 
-        public async Task RelayMessage(Guid sessionId, string messageJson, bool isTampered)
+        public async Task RelayMessage(Guid sessionId, string messageJson, string attackMode)
         {
             if (!_activeSessions.TryGetValue(sessionId, out var state))
             {
@@ -139,9 +143,13 @@ namespace KriptoServer.Hubs
                 return;
             }
 
-            if (isTampered)
+            if (attackMode == "TagTamper")
             {
                 TamperPackage(package);
+            }
+            else if (attackMode == "OutOfOrder")
+            {
+                package.SequenceNumber += 2;
             }
 
             try
