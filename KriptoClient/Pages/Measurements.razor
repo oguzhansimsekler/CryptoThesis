@@ -55,6 +55,7 @@
         border-radius: 10px 10px 0 0;
         background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
         box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+        min-height: 18px;
     }
 
     .chart-label {
@@ -94,6 +95,10 @@
     <div class="chart-note">
         Grafik, ortalama gecikme degerlerini gosterir. En yuksek gecikme su anda <strong>Complete Secure Handshake</strong>
         operasyonundadir; en dusuk gecikme ise <strong>HKDF Key Derivation</strong> asamasindadir.
+    </div>
+    <div class="chart-note">
+        Not: Kolon yukseklikleri, kucuk gecikme farklarinin da gorulebilmesi icin logaritmik gorsel olcek ile cizilmistir.
+        Sayisal degerler sutun ustunde ve tabloda dogrudan verilmis haldedir.
     </div>
 </div>
 
@@ -140,13 +145,14 @@
         new("Complete Secure Handshake", "Handshake", 0.3086, "0.3086", "0.2684", "0.1899", "1.4726", "X25519 + Ed25519 + HKDF ile uc-tan-uca oturum kurulumu")
     };
 
-    private double MaxAverage => Rows.Max(x => x.AverageValue);
+    private double MaxAverageLog => Rows.Max(x => Math.Log10(x.AverageValue + 1));
 
     private double GetBarHeight(double value)
     {
         const double maxHeight = 230d;
-        const double minHeight = 12d;
-        return minHeight + ((value / MaxAverage) * maxHeight);
+        const double minHeight = 18d;
+        double normalized = Math.Log10(value + 1) / MaxAverageLog;
+        return minHeight + (normalized * maxHeight);
     }
 
     private record MeasurementRow(
