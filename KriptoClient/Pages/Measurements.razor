@@ -133,11 +133,11 @@
 @code {
     private readonly List<MeasurementRow> Rows = new()
     {
-        new("secp256r1 Key Generation", "Key Gen", 0.6719, "0.6719", "0.5776", "0.4320", "3.1026", "Ephemeral ECC anahtar cifti uretimi"),
-        new("HKDF Key Derivation", "HKDF", 0.0052, "0.0052", "0.0050", "0.0044", "0.0168", "Transcript bagli oturum anahtari turetimi"),
-        new("AES-256-GCM Encryption (1 KB)", "AES Enc", 0.0200, "0.0200", "0.0196", "0.0187", "0.1709", "1 KB veri sifreleme"),
-        new("AES-256-GCM Decryption (1 KB)", "AES Dec", 0.0410, "0.0410", "0.0398", "0.0372", "0.2187", "1 KB veri cozumleme ve tag kontrolu"),
-        new("Complete Secure Handshake", "Handshake", 4.0278, "4.0278", "3.9190", "2.9164", "13.8665", "ECDH + HKDF ile uc-tan-uca oturum kurulumu")
+        new("X25519 Key Generation", "X25519", 0.0963, "0.0963", "0.0930", "0.0801", "0.3521", "Ephemeral Curve25519 anahtar cifti uretimi"),
+        new("HKDF Key Derivation", "HKDF", 0.0103, "0.0103", "0.0089", "0.0079", "0.0561", "Transcript bagli oturum anahtari turetimi"),
+        new("AES-256-GCM Encryption (1 KB)", "AES Enc", 0.0233, "0.0233", "0.0221", "0.0195", "0.9977", "1 KB veri sifreleme"),
+        new("AES-256-GCM Decryption (1 KB)", "AES Dec", 0.0449, "0.0449", "0.0409", "0.0393", "2.5099", "1 KB veri cozumleme ve tag kontrolu"),
+        new("Complete Secure Handshake", "Handshake", 0.3086, "0.3086", "0.2684", "0.1899", "1.4726", "X25519 + Ed25519 + HKDF ile uc-tan-uca oturum kurulumu")
     };
 
     private double MaxAverage => Rows.Max(x => x.AverageValue);

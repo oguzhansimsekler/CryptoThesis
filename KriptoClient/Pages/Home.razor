@@ -385,7 +385,7 @@
         {
             AliceStatus = "Imza hatasi. Mudahale saptandi.";
             BobStatus = "Bob tarafina ulasmadan paket reddedildi.";
-            SecurityEvents.Insert(0, new SecurityEvent { Content = "ECDSA signature verification failed.", IsError = true });
+            SecurityEvents.Insert(0, new SecurityEvent { Content = "Ed25519 signature verification failed.", IsError = true });
             FailedStep = "verify";
             IsHandshakeActive = false;
             return;

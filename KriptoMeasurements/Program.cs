@@ -8,7 +8,7 @@ const int payloadSizeBytes = 1024;
 
 var results = new List<MeasurementResult>
 {
-    Measure("secp256r1 Key Generation", warmupIterations, measurementIterations, () =>
+    Measure("X25519 Key Generation", warmupIterations, measurementIterations, () =>
     {
         _ = new HandshakeService();
     }),

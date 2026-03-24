@@ -8,7 +8,7 @@ namespace CryptoLibrary
 {
     public static class ProtocolHelpers
     {
-        public static byte[] GetAnonymousIdentityPlaceholder() => new byte[65];
+        public static byte[] GetAnonymousIdentityPlaceholder() => new byte[32];
 
         public static byte[] CalculateCanonicalTranscriptHash(
             byte[] clientId,

@@ -9,7 +9,7 @@ public class ProtocolSecurityTests
     [Fact]
     public void ClientAndServer_DeriveSameSession_AndExchangeMessage()
     {
-        var (clientSession, serverSession, clientNonce, serverNonce) = CreateConnectedSessions();
+        var (clientSession, serverSession, _, _) = CreateConnectedSessions();
 
         Assert.NotNull(clientSession.Channel);
         Assert.NotNull(serverSession.Channel);
@@ -52,7 +52,7 @@ public class ProtocolSecurityTests
         var handshake = new HandshakeService();
         Exception ex = Assert.Throws<Exception>(() => handshake.DeriveSharedSecret(new byte[] { 0x01, 0x02, 0x03 }));
 
-        Assert.Contains("Public Key formatı geçersiz", ex.Message);
+        Assert.Contains("Public Key formati gecersiz", ex.Message);
     }
 
     [Fact]
