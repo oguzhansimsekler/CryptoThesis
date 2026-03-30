@@ -37,13 +37,15 @@ public class ProtocolSecurityTests
     public void ReplayAttack_IsRejected()
     {
         var (clientSession, serverSession, _, _) = CreateConnectedSessions();
-        SecurePackage package = clientSession.Channel!.Encrypt("tek-seferlik");
+        const string message = "tek-seferlik";
+        SecurePackage package = clientSession.Channel!.Encrypt(message);
 
         string firstRead = serverSession.Channel!.Decrypt(package);
         Exception ex = Assert.Throws<Exception>(() => serverSession.Channel!.Decrypt(package));
 
-        Assert.Equal("tek-seferlik", firstRead);
+        Assert.Equal(message, firstRead);
         Assert.Contains("REPLAY SALDIRISI", ex.Message);
+        Assert.DoesNotContain(message, ex.Message);
     }
 
     [Fact]

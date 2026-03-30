@@ -156,6 +156,68 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
         Assert.Contains("Bob paketi reddetti", report.StatusMessage);
     }
 
+    [Fact]
+    public async Task Server_RejectsForgedInjection_WithUnknownSessionId()
+    {
+        using var httpClient = _factory.CreateClient();
+        await using var connection = CreateHubConnection();
+
+        var packetQueue = new ConcurrentQueue<(string Type, string Json, bool IsTampered)>();
+        var finalizeServerHello = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var deliveryReport = new TaskCompletionSource<DeliveryReport>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        connection.On<string, string, bool>("ReceiveHandshakePackage", (type, json, isTampered) =>
+        {
+            packetQueue.Enqueue((type, json, isTampered));
+        });
+
+        connection.On<string>("FinalizeServerHello", json =>
+        {
+            finalizeServerHello.TrySetResult(json);
+        });
+
+        connection.On<DeliveryReport>("ReceiveDeliveryReport", report =>
+        {
+            deliveryReport.TrySetResult(report);
+        });
+
+        await connection.StartAsync();
+
+        var clientSession = new CryptoProtocolSession(new IdentityService(ProtocolIdentity.GetPinnedServerPublicKey()), "Client");
+        Guid sessionId = Guid.NewGuid();
+        byte[] clientNonce = RandomNumberGenerator.GetBytes(16);
+
+        await connection.InvokeAsync("PostClientHello", new ClientHelloMessage
+        {
+            SessionId = sessionId,
+            ClientNonce = clientNonce,
+            ClientEphemeralPublicKey = clientSession.MyEphemeralPub!
+        });
+
+        string clientHelloJson = await WaitForPacketJsonAsync(packetQueue, "ClientHello");
+        await connection.InvokeAsync("BobProcessClientHello", clientHelloJson, "None");
+
+        string serverHelloJson = await WaitForPacketJsonAsync(packetQueue, "ServerHello");
+        await connection.InvokeAsync("ForwardToAlice", serverHelloJson, "None");
+
+        string finalizedHelloJson = await finalizeServerHello.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        ServerHelloMessage serverHello = JsonSerializer.Deserialize<ServerHelloMessage>(finalizedHelloJson)!;
+
+        clientSession.FinalizeHandshake(
+            serverHello.ServerIdentityPublicKey,
+            serverHello.ServerEphemeralPublicKey,
+            clientNonce,
+            serverHello.ServerNonce);
+
+        SecurePackage package = clientSession.Channel!.Encrypt("sahte-oturum-denemesi");
+        await connection.InvokeAsync("RelayMessage", Guid.NewGuid(), JsonSerializer.Serialize(package), "None");
+
+        DeliveryReport report = await deliveryReport.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.False(report.Success);
+        Assert.Contains("aktif bir oturum bulamadi", report.StatusMessage);
+    }
+
     private HubConnection CreateHubConnection()
     {
         return new HubConnectionBuilder()

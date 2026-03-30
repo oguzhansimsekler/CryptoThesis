@@ -116,9 +116,9 @@
             <hr />
             <div class="small text-muted mb-2">Attack Guide</div>
             <div class="small mb-3">
-                <div>`ClientHello`: invalid public key</div>
-                <div>`ServerHello`: signature tamper, pinned key mismatch</div>
-                <div>`Data`: tag tamper, out-of-order, replay</div>
+                <div>`ClientHello`: invalid public key, drop</div>
+                <div>`ServerHello`: signature tamper, pinned key mismatch, drop</div>
+                <div>`Data`: tag tamper, out-of-order, replay, drop, forged injection</div>
             </div>
             <input type="text" class="form-control form-control-sm mb-2" placeholder="Guvenli mesaj..." @bind="PlainTextMsg" disabled="@(!IsConnected)" />
             <button class="btn btn-primary btn-sm w-100 shadow-sm" @onclick="SendMessage" disabled="@(!IsConnected)">Sifrele ve Gonder</button>
@@ -150,17 +150,21 @@
                                 @if (pkg.Type == "ClientHello")
                                 {
                                     <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.InvalidClientKey))">Public Key Boz</button>
+                                    <button class="btn btn-xs btn-outline-warning py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.Drop))">Dusur</button>
                                 }
                                 else if (pkg.Type == "ServerHello")
                                 {
                                     <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.SignatureTamper))">Imzayi Boz</button>
                                     <button class="btn btn-xs btn-warning py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.PinnedKeyMismatch))">Pinned Key Boz</button>
+                                    <button class="btn btn-xs btn-outline-warning py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.Drop))">Dusur</button>
                                 }
                                 else if (pkg.Type == "Data")
                                 {
                                     <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.TagTamper))">Tag Boz</button>
                                     <button class="btn btn-xs btn-warning py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.OutOfOrder))">Sira Boz</button>
                                     <button class="btn btn-xs btn-secondary py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.Replay))">Replay</button>
+                                    <button class="btn btn-xs btn-outline-warning py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.Drop))">Dusur</button>
+                                    <button class="btn btn-xs btn-outline-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.InjectUnknownSession))">Sahte Paket</button>
                                 }
                             </div>
                         }
@@ -317,6 +321,14 @@
         pkg.AttackLabel = GetAttackLabel(attack);
         SecurityEvents.Insert(0, new SecurityEvent { Content = $"Attack injected: {pkg.AttackLabel}", IsError = true });
 
+        if (attack == AttackAction.Drop)
+        {
+            FailedStep ??= GetFailureStepForPacket(pkg.Type);
+            BobStatus = "Paket ag uzerinde baskilandi.";
+            AliceStatus = "Iletim saldirgan tarafindan engellendi.";
+            return;
+        }
+
         if (pkg.Type == "ClientHello" && attack == AttackAction.InvalidClientKey)
         {
             FailedStep = "serverhello";
@@ -340,6 +352,14 @@
             NetworkLog.Last().IsProcessed = true;
             FailedStep = "data";
             await hubConnection!.SendAsync("RelayMessage", _currentSessionId, pkg.JsonContent, "None");
+            return;
+        }
+
+        if (pkg.Type == "Data" && attack == AttackAction.InjectUnknownSession)
+        {
+            CurrentStep = "data";
+            FailedStep = "data";
+            await hubConnection!.SendAsync("RelayMessage", Guid.NewGuid(), pkg.JsonContent, "None");
             return;
         }
 
@@ -528,7 +548,16 @@
         AttackAction.TagTamper => "Tag Tamper",
         AttackAction.OutOfOrder => "Out-of-Order",
         AttackAction.Replay => "Replay Attack",
+        AttackAction.Drop => "Dropped Packet",
+        AttackAction.InjectUnknownSession => "Forged Injection",
         _ => "Normal"
+    };
+
+    private static string GetFailureStepForPacket(string packetType) => packetType switch
+    {
+        "ClientHello" => "serverhello",
+        "ServerHello" => "verify",
+        _ => "data"
     };
 
     private void SetMode(AppMode mode) => CurrentMode = mode;
@@ -546,7 +575,9 @@
         PinnedKeyMismatch,
         TagTamper,
         OutOfOrder,
-        Replay
+        Replay,
+        Drop,
+        InjectUnknownSession
     }
 
     public record ProtocolStep(string Key, string Title, string Description);

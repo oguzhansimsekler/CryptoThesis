@@ -98,10 +98,9 @@ namespace CryptoLibrary
             // Şifre başarıyla çözüldü, PEKİ ZAMANI DOĞRU MU?
             if (package.SequenceNumber != _expectedInboundSequence)
             {
-                // Şifre doğru olsa bile, sıra yanlış olduğu için REDDETMELİYİZ.
-                // Hatanın sonuna parantez içinde çözülen mesajı da ekliyoruz ki
-                // "Bakın bu aslında şu eski mesajdı" diye görebilin.
-                throw new Exception($"REPLAY SALDIRISI! (Seq: {package.SequenceNumber} Beklenen: {_expectedInboundSequence}) [İçerik: {plaintext}]");
+                // Şifre doğru olsa bile, sıra yanlış olduğu için paket reddedilir.
+                // Fail-closed davranis icin plaintext uygulama seviyesine sizdirilmaz.
+                throw new Exception($"REPLAY SALDIRISI! (Seq: {package.SequenceNumber} Beklenen: {_expectedInboundSequence})");
             }
 
             // Her şey yolundaysa sırayı ilerlet

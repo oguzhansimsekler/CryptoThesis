@@ -6,8 +6,8 @@ C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\Kripto
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.AssemblyInfoInputs.cache
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.AssemblyInfo.cs
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.csproj.CoreCompileInputs.cache
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.sourcelink.json
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.dll
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\refint\KriptoLibrary.dll
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.pdb
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\ref\KriptoLibrary.dll
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoLibrary\obj\Debug\net7.0\KriptoLibrary.sourcelink.json

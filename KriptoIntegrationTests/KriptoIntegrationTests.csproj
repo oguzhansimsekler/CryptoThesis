@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <UseAppHost>false</UseAppHost>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,8 +21,16 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\KriptoLibrary\KriptoLibrary.csproj" />
+    <ProjectReference Include="..\KriptoLibrary\KriptoLibrary.csproj" SkipGetTargetFrameworkProperties="true" />
     <ProjectReference Include="..\KriptoServer\KriptoServer.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\KriptoServer\bin\Debug\net7.0\KriptoServer.deps.json" Link="KriptoServer.deps.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\KriptoServer\bin\Debug\net7.0\KriptoServer.runtimeconfig.json" Link="KriptoServer.runtimeconfig.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\KriptoServer\bin\Debug\net7.0\KriptoServer.staticwebassets.endpoints.json" Link="KriptoServer.staticwebassets.endpoints.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\KriptoServer\bin\Debug\net7.0\appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\KriptoServer\bin\Debug\net7.0\appsettings.Development.json" Link="appsettings.Development.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
