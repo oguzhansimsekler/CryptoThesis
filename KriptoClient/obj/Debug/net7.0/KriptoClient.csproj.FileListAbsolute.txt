@@ -872,8 +872,8 @@ C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compres
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\pvgmyyvufr-7fqh1mn6la.gz
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\yehn2i2zat-iusbqm6v0b.gz
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\staticwebassets.upToDateCheck.txt
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\ktrjepqvce-6xlahotjek.gz
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\vqzxp9ioms-5sfs891aiz.gz
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\lw9xbu16gv-9pswuiproc.gz
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\aork7jjte1-wt0qsvu00x.gz
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\hgfs6syd75-4iovipyrdg.gz
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\ktrjepqvce-kytedifmsa.gz
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\vqzxp9ioms-7ozds9v8i5.gz
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\lw9xbu16gv-wrgutuqxmp.gz
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\aork7jjte1-o973ep1bd4.gz
+C:\Users\OguzHan\source\repos\CryptoThesis\KriptoClient\obj\Debug\net7.0\compressed\hgfs6syd75-e5islc5xxw.gz
