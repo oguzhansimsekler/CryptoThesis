@@ -486,12 +486,12 @@
 
     private async Task SendMessage()
     {
-        if (AliceSession?.Channel == null || string.IsNullOrWhiteSpace(PlainTextMsg))
+        if (AliceSession?.SendChannel == null || string.IsNullOrWhiteSpace(PlainTextMsg))
         {
             return;
         }
 
-        SecurePackage package = AliceSession.Channel.Encrypt(PlainTextMsg);
+        SecurePackage package = AliceSession.SendChannel.Encrypt(PlainTextMsg);
         string json = JsonSerializer.Serialize(package);
         LogPacket("Data", json, false);
 

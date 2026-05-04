@@ -4,16 +4,13 @@ namespace CryptoLibrary
 
     public static class ProtocolIdentity
     {
-        // Tez demosu icin out-of-band olarak paylasilan ve istemciye pin edilen sabit sunucu kimligi.
-        private const string ServerPrivateSeedHex = "1E99423A4ED27608A15A2616DE1B5B3F4A8E7D3C2B1A09182736455463728190";
+        // Tez demosunda client'a out-of-band olarak pin edilen sunucu public anahtarının türetildiği seed.
+        // Sunucunun private seed'i artık bu sınıfta tutulmaz; appsettings.json / ortam değişkeni ile yapılandırılır.
+        // Bu sabit yalnızca pinned public key'i türetmek için kullanılır ve gizli değildir.
+        internal const string DemoServerSeedHex = "1E99423A4ED27608A15A2616DE1B5B3F4A8E7D3C2B1A09182736455463728190";
 
-        private static readonly Lazy<IdentityService> ServerIdentityLazy =
-            new(() => IdentityService.CreateFromPrivateSeed(Convert.FromHexString(ServerPrivateSeedHex)));
-
-        private static readonly Lazy<byte[]> PinnedServerPublicKeyLazy =
-            new(() => ServerIdentityLazy.Value.GetPublicKey());
-
-        public static IdentityService CreateServerIdentity() => ServerIdentityLazy.Value;
+        private static readonly Lazy<byte[]> PinnedServerPublicKeyLazy = new(
+            () => IdentityService.CreateFromPrivateSeed(Convert.FromHexString(DemoServerSeedHex)).GetPublicKey());
 
         public static byte[] GetPinnedServerPublicKey() => (byte[])PinnedServerPublicKeyLazy.Value.Clone();
     }

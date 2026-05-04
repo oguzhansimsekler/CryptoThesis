@@ -7,37 +7,30 @@ namespace CryptoLibrary
 {
     public static class KeySchedule
     {
-        /// <summary>
-        /// Shared Secret ve Handshake Transcript üzerinden oturum anahtarlarını türetir.
-        /// </summary>
-        /// <param name="sharedSecret">ECDH çıktısı (32 byte)</param>
-        /// <param name="transcriptHash">
-        /// GÜVENLİK KRİTİĞİ: Bu hash şu formatta olmalı:
-        /// SHA256( "CTPK-HS1" || ClientEphPub || ServerEphPub || ClientIdPub || ServerIdPub )
-        /// </param>
-        public static (byte[] Key, byte[] NonceBase) DeriveSessionKeys(byte[] sharedSecret, byte[] transcriptHash)
+        public record SessionKeyMaterial(
+            byte[] ClientToServerKey,
+            byte[] ClientToServerNonce,
+            byte[] ServerToClientKey,
+            byte[] ServerToClientNonce);
+
+        // GÜVENLİK KRİTİĞİ: transcriptHash HKDF salt'ı olarak kullanılır (Context Binding).
+        // Her yön için bağımsız anahtar + nonce türetilir — kanal asimetrik olur.
+        public static SessionKeyMaterial DeriveSessionKeys(byte[] sharedSecret, byte[] transcriptHash)
         {
             var hkdf = new HkdfBytesGenerator(new Sha256Digest());
-
-            // Salt olarak Transcript Hash kullanıyoruz (Context Binding)
-            byte[] salt = transcriptHash;
-
-            // Info: Protokol versiyonu ve amacı (Domain Separation)
             byte[] info = Encoding.UTF8.GetBytes("CryptoThesis-Protocol-v1-SessionKeys");
+            hkdf.Init(new HkdfParameters(sharedSecret, transcriptHash, info));
 
-            hkdf.Init(new HkdfParameters(sharedSecret, salt, info));
+            // 88 byte: [0..43] Client→Server, [44..87] Server→Client
+            byte[] km = new byte[88];
+            hkdf.GenerateBytes(km, 0, 88);
 
-            // Toplam 44 Byte (32 Key + 12 Nonce)
-            byte[] keyMaterial = new byte[44];
-            hkdf.GenerateBytes(keyMaterial, 0, 44);
+            byte[] c2sKey   = new byte[32]; Array.Copy(km,  0, c2sKey,   0, 32);
+            byte[] c2sNonce = new byte[12]; Array.Copy(km, 32, c2sNonce, 0, 12);
+            byte[] s2cKey   = new byte[32]; Array.Copy(km, 44, s2cKey,   0, 32);
+            byte[] s2cNonce = new byte[12]; Array.Copy(km, 76, s2cNonce, 0, 12);
 
-            byte[] aesKey = new byte[32];
-            byte[] nonceBase = new byte[12];
-
-            Array.Copy(keyMaterial, 0, aesKey, 0, 32);
-            Array.Copy(keyMaterial, 32, nonceBase, 0, 12);
-
-            return (aesKey, nonceBase);
+            return new SessionKeyMaterial(c2sKey, c2sNonce, s2cKey, s2cNonce);
         }
     }
 }

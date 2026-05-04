@@ -1,7 +1,7 @@
 {
   "entryAssembly": "KriptoClient",
   "resources": {
-    "hash": "sha256-VbJ2y/objdMSPSX2jnRNpOKC/mqbVSyzavsLf0wkVj4=",
+    "hash": "sha256-hgKOmJ5h+OUqDvTx0d8iwMECBpGCnabI7ihiTlqcgHY=",
     "runtime": {
       "dotnet.js": "sha256-eaJTmow4t8eE7FZMZR5Ja41JMOefGCbIYDTdpclGsac=",
       "dotnet.timezones.blat": "sha256-gbATD5HDsHYtW8vdPYh9iSBY4O5CjvMeCSF5xXWF1xo=",
@@ -212,12 +212,12 @@
       "mscorlib.dll": "sha256-HYyp9hO+GKFyupcEiY1PxtBBXbHzefsO3Q8RiQTaNCA=",
       "netstandard.dll": "sha256-N5CcC3sLzGBesbmeJAp5bwxABN9u7SwkIO5qfFjzoik=",
       "System.Private.CoreLib.dll": "sha256-bJS1DJmhjP7PvegYG+Z8O9EDtRY78HKinA3LUMVLlSQ=",
-      "KriptoLibrary.dll": "sha256-LLTWBusKixE/GeaUl8qdzxqRQcIkYbw4OMv9YRNjizU=",
-      "KriptoClient.dll": "sha256-bAWEPcA6gWAZfVG2IMm/GRAPyuPPG4tE3HZzOlR1evY="
+      "KriptoLibrary.dll": "sha256-3u8FONAG8tiSAQWn5xy1gN4v9oM0uoM2SyBsbltsYxc=",
+      "KriptoClient.dll": "sha256-dPXMbcKkLPn+NwvxD8MVxTZNHPcPGcXrUDYeOSBL1xc="
     },
     "pdb": {
-      "KriptoLibrary.pdb": "sha256-10Ui4bYaadtF7DkvMAMMXaAxNcBiChbf6t+E/D7metI=",
-      "KriptoClient.pdb": "sha256-jOk7UdtDupZEKY8l+tj/uKrmp57TysCpmWnAGhoH0ew="
+      "KriptoLibrary.pdb": "sha256-be2Z5nNl496radXdoh4knji0pbJ2hN3kPI9odJB94pY=",
+      "KriptoClient.pdb": "sha256-P7h+E9oyn3wtdvoIWy+dwJdxXqqEdX0U8I7lBwXfa2E="
     },
     "runtimeAssets": {
       "dotnet.wasm": {

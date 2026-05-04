@@ -7,7 +7,11 @@ namespace CryptoLibrary
         public string Role { get; }
         public IdentityService Identity { get; }
         public HandshakeService Handshake { get; }
-        public SecureChannel? Channel { get; private set; }
+
+        // Giden mesajlar için şifreleme kanalı
+        public SecureChannel? SendChannel { get; private set; }
+        // Gelen mesajlar için şifre çözme kanalı — ters yön anahtarı kullanır
+        public SecureChannel? ReceiveChannel { get; private set; }
 
         public byte[]? MyEphemeralPub { get; }
         public byte[]? PeerEphemeralPub { get; private set; }
@@ -47,27 +51,25 @@ namespace CryptoLibrary
             }
 
             TranscriptHash = ProtocolHelpers.CalculateCanonicalTranscriptHash(
-                clientId,
-                serverId,
-                clientEph,
-                serverEph,
-                clientNonce,
-                serverNonce);
+                clientId, serverId, clientEph, serverEph, clientNonce, serverNonce);
 
             var keys = KeySchedule.DeriveSessionKeys(sharedSecret, TranscriptHash);
-            Channel = new SecureChannel(keys.Key, keys.NonceBase);
+            bool isClient = Role == "Client";
+
+            // Client→Server anahtarını Client gönderir, Server alır; Server→Client tersi.
+            SendChannel = new SecureChannel(
+                isClient ? keys.ClientToServerKey   : keys.ServerToClientKey,
+                isClient ? keys.ClientToServerNonce : keys.ServerToClientNonce);
+
+            ReceiveChannel = new SecureChannel(
+                isClient ? keys.ServerToClientKey   : keys.ClientToServerKey,
+                isClient ? keys.ServerToClientNonce : keys.ClientToServerNonce);
         }
 
         private byte[] TryGetOwnPublicKeyOrAnonymous()
         {
-            try
-            {
-                return Identity.GetPublicKey();
-            }
-            catch
-            {
-                return ProtocolHelpers.GetAnonymousIdentityPlaceholder();
-            }
+            try { return Identity.GetPublicKey(); }
+            catch { return ProtocolHelpers.GetAnonymousIdentityPlaceholder(); }
         }
     }
 }

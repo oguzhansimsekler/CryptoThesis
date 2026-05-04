@@ -1,35 +1,48 @@
+using CryptoLibrary;
 using KriptoServer.Hubs;
 using Microsoft.AspNetCore.ResponseCompression;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. SignalR Servisini Ekle
+// 1. Sunucu kimlik anahtarını yapılandırmadan yükle
+var seedHex = builder.Configuration["ServerIdentity:PrivateKeySeed"]
+    ?? throw new InvalidOperationException(
+        "ServerIdentity:PrivateKeySeed yapılandırılmamış. appsettings.json veya ortam değişkenini kontrol edin.");
+
+var serverIdentity = IdentityService.CreateFromPrivateSeed(Convert.FromHexString(seedHex));
+
+// Güvenlik: yapılandırılan seed'in pinned public key ile eşleştiğini doğrula
+if (!serverIdentity.GetPublicKey().SequenceEqual(ProtocolIdentity.GetPinnedServerPublicKey()))
+    throw new InvalidOperationException(
+        "ServerIdentity:PrivateKeySeed, istemcide pin edilmiş public key ile eşleşmiyor.");
+
+builder.Services.AddSingleton(serverIdentity);
+
+// 2. SignalR Servisini Ekle
 builder.Services.AddSignalR();
 
-// 2. CORS Politikas� (Blazor'�n ba�lanabilmesi i�in �art)
+// 3. CORS Politikası (Blazor'ın bağlanabilmesi için şart)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
-        builder =>
+        corsBuilder =>
         {
-            builder
+            corsBuilder
                 .AllowAnyMethod()
                 .AllowAnyHeader()
-                .SetIsOriginAllowed((host) => true) // Localhost i�in izin ver
+                .SetIsOriginAllowed((_) => true)
                 .AllowCredentials();
         });
 });
 
 var app = builder.Build();
 
-// 3. CORS'u Aktif Et
+// 4. CORS'u Aktif Et
 app.UseCors("AllowAll");
 
-// 4. Hub Rotas�n� Tan�mla
-// Blazor taraf�nda .WithUrl("/cryptohub") demi�tik, i�te o buras�.
+// 5. Hub Rotasını Tanımla
 app.MapHub<CryptoHub>("/cryptohub");
 
-// Test i�in basit bir endpoint (Opsiyonel)
 app.MapGet("/", () => "CryptoServer Calisiyor! SignalR Hub: /cryptohub");
 
 app.Run();

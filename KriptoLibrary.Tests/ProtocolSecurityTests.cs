@@ -11,12 +11,12 @@ public class ProtocolSecurityTests
     {
         var (clientSession, serverSession, _, _) = CreateConnectedSessions();
 
-        Assert.NotNull(clientSession.Channel);
-        Assert.NotNull(serverSession.Channel);
+        Assert.NotNull(clientSession.SendChannel);
+        Assert.NotNull(serverSession.ReceiveChannel);
         Assert.Equal(clientSession.TranscriptHash, serverSession.TranscriptHash);
 
-        SecurePackage package = clientSession.Channel!.Encrypt("tez-protokol-mesaji");
-        string plaintext = serverSession.Channel!.Decrypt(package);
+        SecurePackage package = clientSession.SendChannel!.Encrypt("tez-protokol-mesaji");
+        string plaintext = serverSession.ReceiveChannel!.Decrypt(package);
 
         Assert.Equal("tez-protokol-mesaji", plaintext);
     }
@@ -25,11 +25,11 @@ public class ProtocolSecurityTests
     public void TamperedTag_IsRejectedByServerChannel()
     {
         var (clientSession, serverSession, _, _) = CreateConnectedSessions();
-        SecurePackage package = clientSession.Channel!.Encrypt("butunluk-korunmali");
+        SecurePackage package = clientSession.SendChannel!.Encrypt("butunluk-korunmali");
 
         package.Tag[0] ^= 0xFF;
 
-        Exception ex = Assert.Throws<Exception>(() => serverSession.Channel!.Decrypt(package));
+        Exception ex = Assert.Throws<Exception>(() => serverSession.ReceiveChannel!.Decrypt(package));
         Assert.Contains("BÜTÜNLÜK HATASI", ex.Message);
     }
 
@@ -38,10 +38,10 @@ public class ProtocolSecurityTests
     {
         var (clientSession, serverSession, _, _) = CreateConnectedSessions();
         const string message = "tek-seferlik";
-        SecurePackage package = clientSession.Channel!.Encrypt(message);
+        SecurePackage package = clientSession.SendChannel!.Encrypt(message);
 
-        string firstRead = serverSession.Channel!.Decrypt(package);
-        Exception ex = Assert.Throws<Exception>(() => serverSession.Channel!.Decrypt(package));
+        string firstRead = serverSession.ReceiveChannel!.Decrypt(package);
+        Exception ex = Assert.Throws<Exception>(() => serverSession.ReceiveChannel!.Decrypt(package));
 
         Assert.Equal(message, firstRead);
         Assert.Contains("REPLAY SALDIRISI", ex.Message);
@@ -60,7 +60,7 @@ public class ProtocolSecurityTests
     [Fact]
     public void TamperedServerHelloSignature_IsRejectedByClient()
     {
-        var serverIdentity = ProtocolIdentity.CreateServerIdentity();
+        var serverIdentity = CreateTestServerIdentity();
         var clientIdentity = new IdentityService(ProtocolIdentity.GetPinnedServerPublicKey());
         var clientSession = new CryptoProtocolSession(clientIdentity, "Client");
         var serverSession = new CryptoProtocolSession(serverIdentity, "Server");
@@ -81,10 +81,25 @@ public class ProtocolSecurityTests
         Assert.False(clientIdentity.VerifySignature(transcript, signature));
     }
 
+    [Fact]
+    public void ClientSendChannel_AndServerReceiveChannel_UseOppositeKeys()
+    {
+        var (clientSession, serverSession, _, _) = CreateConnectedSessions();
+
+        // Server'ın SendChannel → Client'ın ReceiveChannel ile şifre çözülmeli
+        SecurePackage fromServer = serverSession.SendChannel!.Encrypt("sunucudan-istemciye");
+        string decrypted = clientSession.ReceiveChannel!.Decrypt(fromServer);
+
+        Assert.Equal("sunucudan-istemciye", decrypted);
+    }
+
+    private static IdentityService CreateTestServerIdentity() =>
+        IdentityService.CreateFromPrivateSeed(Convert.FromHexString(ProtocolIdentity.DemoServerSeedHex));
+
     private static (CryptoProtocolSession ClientSession, CryptoProtocolSession ServerSession, byte[] ClientNonce, byte[] ServerNonce)
         CreateConnectedSessions()
     {
-        var serverIdentity = ProtocolIdentity.CreateServerIdentity();
+        var serverIdentity = CreateTestServerIdentity();
         var clientIdentity = new IdentityService(ProtocolIdentity.GetPinnedServerPublicKey());
         var clientSession = new CryptoProtocolSession(clientIdentity, "Client");
         var serverSession = new CryptoProtocolSession(serverIdentity, "Server");

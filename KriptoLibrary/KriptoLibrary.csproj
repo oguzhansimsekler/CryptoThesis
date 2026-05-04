@@ -12,4 +12,10 @@
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="7.0.20" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>KriptoLibrary.Tests</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
 </Project>
