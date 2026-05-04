@@ -21,6 +21,9 @@ namespace CryptoLibrary
 
         public SecurePackage Encrypt(string plaintext)
         {
+            if (_outboundSequence == ulong.MaxValue)
+                throw new InvalidOperationException("KANAL SINIRINA ULAŞILDI: maksimum mesaj sayısı aşıldı. Oturum yenilenmeli.");
+
             _outboundSequence++;
 
             byte[] nonce = CalculateNonce(_outboundSequence);

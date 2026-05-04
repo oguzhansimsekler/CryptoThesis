@@ -84,7 +84,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
             clientNonce,
             serverHello.ServerNonce);
 
-        SecurePackage package = clientSession.Channel!.Encrypt("entegrasyon-test-mesaji");
+        SecurePackage package = clientSession.SendChannel!.Encrypt("entegrasyon-test-mesaji");
         await connection.InvokeAsync("RelayMessage", sessionId, JsonSerializer.Serialize(package), "None");
 
         DeliveryReport report = await deliveryReport.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -147,7 +147,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
             clientNonce,
             serverHello.ServerNonce);
 
-        SecurePackage package = clientSession.Channel!.Encrypt("sira-testi");
+        SecurePackage package = clientSession.SendChannel!.Encrypt("sira-testi");
         await connection.InvokeAsync("RelayMessage", sessionId, JsonSerializer.Serialize(package), "OutOfOrder");
 
         DeliveryReport report = await deliveryReport.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -209,7 +209,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
             clientNonce,
             serverHello.ServerNonce);
 
-        SecurePackage package = clientSession.Channel!.Encrypt("sahte-oturum-denemesi");
+        SecurePackage package = clientSession.SendChannel!.Encrypt("sahte-oturum-denemesi");
         await connection.InvokeAsync("RelayMessage", Guid.NewGuid(), JsonSerializer.Serialize(package), "None");
 
         DeliveryReport report = await deliveryReport.Task.WaitAsync(TimeSpan.FromSeconds(5));
