@@ -342,4 +342,3 @@ C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\bin\Debug\net7.0\refs\Sy
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\bin\Debug\net7.0\refs\System.Xml.XPath.dll
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\bin\Debug\net7.0\refs\System.Xml.XPath.XDocument.dll
 C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\bin\Debug\net7.0\refs\WindowsBase.dll
-C:\Users\OguzHan\source\repos\CryptoThesis\KriptoServer\obj\Debug\net7.0\staticwebassets.upToDateCheck.txt

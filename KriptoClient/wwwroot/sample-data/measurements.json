@@ -1,0 +1,151 @@
+{
+  "WarmupIterations": 50,
+  "MeasurementIterations": 1000,
+  "GeneratedAtUtc": "2026-05-04T14:02:30.8633459Z",
+  "Results": [
+    {
+      "Operation": "X25519 Key Generation",
+      "Notes": "Fresh ephemeral X25519 key-pair generation",
+      "AverageMs": 0.08887549999999993,
+      "MedianMs": 0.0883,
+      "MinMs": 0.0762,
+      "MaxMs": 0.3547
+    },
+    {
+      "Operation": "X25519 ECDH (Shared Secret)",
+      "Notes": "Shared-secret derivation against a fixed peer key",
+      "AverageMs": 0.17496009999999992,
+      "MedianMs": 0.18395,
+      "MinMs": 0.0592,
+      "MaxMs": 0.5911
+    },
+    {
+      "Operation": "Ed25519 Key Generation",
+      "Notes": "Long-term identity seed and public key generation",
+      "AverageMs": 0.03278660000000004,
+      "MedianMs": 0.0314,
+      "MinMs": 0.0289,
+      "MaxMs": 0.1779
+    },
+    {
+      "Operation": "Ed25519 Sign",
+      "Notes": "Signature generation over a fixed 32-byte transcript fragment",
+      "AverageMs": 0.030086999999999812,
+      "MedianMs": 0.0293,
+      "MinMs": 0.0285,
+      "MaxMs": 0.0792
+    },
+    {
+      "Operation": "Ed25519 Verify",
+      "Notes": "Signature verification using the pinned public key",
+      "AverageMs": 0.0586881999999999,
+      "MedianMs": 0.0559,
+      "MinMs": 0.0536,
+      "MaxMs": 1.0229
+    },
+    {
+      "Operation": "SHA-256 Transcript Hash",
+      "Notes": "Digest over a fixed transcript-sized payload",
+      "AverageMs": 0.00023160000000000197,
+      "MedianMs": 0.0002,
+      "MinMs": 0.0002,
+      "MaxMs": 0.013
+    },
+    {
+      "Operation": "HKDF Key Derivation",
+      "Notes": "Transcript-bound session key derivation from fixed inputs",
+      "AverageMs": 0.009412700000000017,
+      "MedianMs": 0.0089,
+      "MinMs": 0.0083,
+      "MaxMs": 0.1772
+    },
+    {
+      "Operation": "AES-256-GCM Encrypt (1 KB)",
+      "Notes": "1 KB payload encryption on a persistent sender channel",
+      "AverageMs": 0.020137200000000008,
+      "MedianMs": 0.0189,
+      "MinMs": 0.0179,
+      "MaxMs": 0.6212
+    },
+    {
+      "Operation": "AES-256-GCM Encrypt (4 KB)",
+      "Notes": "4 KB payload encryption on a persistent sender channel",
+      "AverageMs": 0.06975040000000009,
+      "MedianMs": 0.0689,
+      "MinMs": 0.0654,
+      "MaxMs": 0.2691
+    },
+    {
+      "Operation": "AES-256-GCM Encrypt (16 KB)",
+      "Notes": "16 KB payload encryption on a persistent sender channel",
+      "AverageMs": 0.1627555000000001,
+      "MedianMs": 0.10965,
+      "MinMs": 0.0921,
+      "MaxMs": 0.8127
+    },
+    {
+      "Operation": "AES-256-GCM Encrypt (64 KB)",
+      "Notes": "64 KB payload encryption on a persistent sender channel",
+      "AverageMs": 0.40175259999999974,
+      "MedianMs": 0.38645,
+      "MinMs": 0.3584,
+      "MaxMs": 0.877
+    },
+    {
+      "Operation": "AES-256-GCM Encrypt (256 KB)",
+      "Notes": "256 KB payload encryption on a persistent sender channel",
+      "AverageMs": 1.7115234999999995,
+      "MedianMs": 1.63415,
+      "MinMs": 1.5163,
+      "MaxMs": 3.1637
+    },
+    {
+      "Operation": "AES-256-GCM Decrypt (1 KB)",
+      "Notes": "1 KB payload decryption against a pre-encrypted package",
+      "AverageMs": 0.008985499999999983,
+      "MedianMs": 0.0093,
+      "MinMs": 0.0067,
+      "MaxMs": 0.0314
+    },
+    {
+      "Operation": "AES-256-GCM Decrypt (4 KB)",
+      "Notes": "4 KB payload decryption against a pre-encrypted package",
+      "AverageMs": 0.028466699999999956,
+      "MedianMs": 0.0261,
+      "MinMs": 0.0236,
+      "MaxMs": 0.2352
+    },
+    {
+      "Operation": "AES-256-GCM Decrypt (16 KB)",
+      "Notes": "16 KB payload decryption against a pre-encrypted package",
+      "AverageMs": 0.11045179999999997,
+      "MedianMs": 0.0985,
+      "MinMs": 0.0907,
+      "MaxMs": 0.3626
+    },
+    {
+      "Operation": "AES-256-GCM Decrypt (64 KB)",
+      "Notes": "64 KB payload decryption against a pre-encrypted package",
+      "AverageMs": 0.44326880000000063,
+      "MedianMs": 0.3993,
+      "MinMs": 0.3671,
+      "MaxMs": 1.3833
+    },
+    {
+      "Operation": "AES-256-GCM Decrypt (256 KB)",
+      "Notes": "256 KB payload decryption against a pre-encrypted package",
+      "AverageMs": 1.6040189,
+      "MedianMs": 1.56635,
+      "MinMs": 1.4605,
+      "MaxMs": 3.5482
+    },
+    {
+      "Operation": "Complete Secure Handshake",
+      "Notes": "ClientHello \u002B ServerHello \u002B transcript signing/verification \u002B HKDF",
+      "AverageMs": 0.3171667000000001,
+      "MedianMs": 0.3083,
+      "MinMs": 0.2959,
+      "MaxMs": 0.9915
+    }
+  ]
+}
