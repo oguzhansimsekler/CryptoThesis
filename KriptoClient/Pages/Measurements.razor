@@ -1,4 +1,6 @@
 @page "/measurements"
+@using System.Net.Http.Json
+@inject HttpClient Http
 
 <PageTitle>Measurements</PageTitle>
 
@@ -13,10 +15,10 @@
 
     .chart-grid {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
         gap: 1rem;
         align-items: end;
-        min-height: 320px;
+        min-height: 340px;
         padding-top: 1rem;
         border-bottom: 2px solid #94a3b8;
         border-left: 2px solid #94a3b8;
@@ -40,7 +42,7 @@
         flex-direction: column;
         align-items: center;
         justify-content: end;
-        min-height: 300px;
+        min-height: 320px;
     }
 
     .chart-value {
@@ -75,93 +77,117 @@
 
 <h1>Performance Measurements</h1>
 
-<p>
-    Bu sayfa, repo icindeki <code>KriptoMeasurements</code> araci ile uretilen son benchmark degerlerini gosterir.
-    Olcumler <code>net7.0</code> ortaminda 50 warmup ve 1000 olcum iterasyonu ile alinmistir.
-</p>
+@if (_report is null)
+{
+    <div class="alert alert-secondary">Olcum raporu yukleniyor...</div>
+}
+else
+{
+    <p>
+        Bu sayfa, repo icindeki <code>KriptoMeasurements</code> araci ile uretilen son benchmark degerlerini gosterir.
+        Olcumler <code>net7.0</code> ortaminda @_report.WarmupIterations warmup ve @_report.MeasurementIterations olcum iterasyonu ile alinmistir.
+    </p>
 
-<div class="chart-shell">
-    <h5 class="mb-3">Latency Comparison (Average ms)</h5>
-    <div class="chart-grid">
-        @foreach (var row in Rows)
-        {
-            <div class="chart-col">
-                <div class="chart-value">@row.AverageMs</div>
-                <div class="chart-bar" style="height:@($"{GetBarHeight(row.AverageValue)}px")"></div>
-                <div class="chart-label">@row.ShortLabel</div>
-            </div>
-        }
-    </div>
-    <div class="chart-note">
-        Grafik, ortalama gecikme degerlerini gosterir. En yuksek gecikme su anda <strong>Complete Secure Handshake</strong>
-        operasyonundadir; en dusuk gecikme ise <strong>HKDF Key Derivation</strong> asamasindadir.
-    </div>
-    <div class="chart-note">
-        Not: Kolon yukseklikleri, kucuk gecikme farklarinin da gorulebilmesi icin logaritmik gorsel olcek ile cizilmistir.
-        Sayisal degerler sutun ustunde ve tabloda dogrudan verilmis haldedir.
-    </div>
-</div>
-
-<div class="table-responsive">
-    <table class="table table-striped table-bordered align-middle">
-        <thead class="table-dark">
-            <tr>
-                <th>Operation</th>
-                <th>Average (ms)</th>
-                <th>Median (ms)</th>
-                <th>Min (ms)</th>
-                <th>Max (ms)</th>
-                <th>Notes</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var row in Rows)
+    <div class="chart-shell">
+        <h5 class="mb-3">Latency Comparison (Average ms)</h5>
+        <div class="chart-grid">
+            @foreach (var row in _report.Results)
             {
-                <tr>
-                    <td>@row.Operation</td>
-                    <td>@row.AverageMs</td>
-                    <td>@row.MedianMs</td>
-                    <td>@row.MinMs</td>
-                    <td>@row.MaxMs</td>
-                    <td>@row.Notes</td>
-                </tr>
+                <div class="chart-col">
+                    <div class="chart-value">@row.AverageMs.ToString("F4")</div>
+                    <div class="chart-bar" style="height:@($"{GetBarHeight(row.AverageMs)}px")"></div>
+                    <div class="chart-label">@GetShortLabel(row.Operation)</div>
+                </div>
             }
-        </tbody>
-    </table>
-</div>
+        </div>
+        <div class="chart-note">
+            Grafik, ortalama gecikme degerlerini gosterir. En yuksek gecikme ve en dusuk gecikme secilen benchmark setine gore
+            dinamik olarak guncellenir.
+        </div>
+        <div class="chart-note">
+            Not: Kolon yukseklikleri, kucuk gecikme farklarinin da gorulebilmesi icin logaritmik gorsel olcek ile cizilmistir.
+            Sayisal degerler sutun ustunde ve tabloda dogrudan verilmis haldedir.
+        </div>
+        <div class="chart-note">
+            Rapor olusturma zamani (UTC): <strong>@_report.GeneratedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</strong>
+        </div>
+    </div>
 
-<div class="alert alert-info mt-3">
-    Bu sayilari yeniden uretmek icin terminalde su komutu calistirabilirsiniz:
-    <code>dotnet run --project KriptoMeasurements\KriptoMeasurements.csproj --no-restore</code>
-</div>
+    <div class="table-responsive">
+        <table class="table table-striped table-bordered align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Operation</th>
+                    <th>Average (ms)</th>
+                    <th>Median (ms)</th>
+                    <th>Min (ms)</th>
+                    <th>Max (ms)</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in _report.Results)
+                {
+                    <tr>
+                        <td>@row.Operation</td>
+                        <td>@row.AverageMs.ToString("F4")</td>
+                        <td>@row.MedianMs.ToString("F4")</td>
+                        <td>@row.MinMs.ToString("F4")</td>
+                        <td>@row.MaxMs.ToString("F4")</td>
+                        <td>@row.Notes</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="alert alert-info mt-3">
+        Bu sayilari yeniden uretmek icin terminalde su komutu calistirabilirsiniz:
+        <code>dotnet run --project KriptoMeasurements\KriptoMeasurements.csproj --no-restore</code>
+    </div>
+}
 
 @code {
-    private readonly List<MeasurementRow> Rows = new()
-    {
-        new("X25519 Key Generation", "X25519", 0.0963, "0.0963", "0.0930", "0.0801", "0.3521", "Ephemeral Curve25519 anahtar cifti uretimi"),
-        new("HKDF Key Derivation", "HKDF", 0.0103, "0.0103", "0.0089", "0.0079", "0.0561", "Transcript bagli oturum anahtari turetimi"),
-        new("AES-256-GCM Encryption (1 KB)", "AES Enc", 0.0233, "0.0233", "0.0221", "0.0195", "0.9977", "1 KB veri sifreleme"),
-        new("AES-256-GCM Decryption (1 KB)", "AES Dec", 0.0449, "0.0449", "0.0409", "0.0393", "2.5099", "1 KB veri cozumleme ve tag kontrolu"),
-        new("Complete Secure Handshake", "Handshake", 0.3086, "0.3086", "0.2684", "0.1899", "1.4726", "X25519 + Ed25519 + HKDF ile uc-tan-uca oturum kurulumu")
-    };
+    private MeasurementReport? _report;
 
-    private double MaxAverageLog => Rows.Max(x => Math.Log10(x.AverageValue + 1));
+    protected override async Task OnInitializedAsync()
+    {
+        _report = await Http.GetFromJsonAsync<MeasurementReport>("sample-data/measurements.json");
+    }
+
+    private double MaxAverageLog => _report is null || _report.Results.Count == 0
+        ? 1d
+        : _report.Results.Max(x => Math.Log10(x.AverageMs + 1));
 
     private double GetBarHeight(double value)
     {
-        const double maxHeight = 230d;
+        const double maxHeight = 240d;
         const double minHeight = 18d;
         double normalized = Math.Log10(value + 1) / MaxAverageLog;
         return minHeight + (normalized * maxHeight);
     }
 
-    private record MeasurementRow(
+    private static string GetShortLabel(string operation)
+    {
+        return operation
+            .Replace("AES-256-GCM ", "AES ")
+            .Replace("Complete Secure ", "")
+            .Replace(" (Shared Secret)", "")
+            .Replace(" Transcript Hash", " Hash")
+            .Replace(" Key Derivation", " HKDF");
+    }
+
+    private sealed record MeasurementReport(
+        int WarmupIterations,
+        int MeasurementIterations,
+        DateTime GeneratedAtUtc,
+        List<MeasurementRow> Results);
+
+    private sealed record MeasurementRow(
         string Operation,
-        string ShortLabel,
-        double AverageValue,
-        string AverageMs,
-        string MedianMs,
-        string MinMs,
-        string MaxMs,
-        string Notes);
+        string Notes,
+        double AverageMs,
+        double MedianMs,
+        double MinMs,
+        double MaxMs);
 }
