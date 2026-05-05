@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(dotnet run *)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(Get-Item \"C:\\\\Users\\\\OguzHan\\\\Desktop\\\\YL_CE_Tez\\\\Makale\\\\v2.pdf\")",
+      "Bash(Select-Object Name, Length, LastWriteTime)"
     ]
   }
 }
