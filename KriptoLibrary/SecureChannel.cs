@@ -1,4 +1,4 @@
-﻿using Org.BouncyCastle.Crypto.Engines;
+﻿using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Parameters;
 using System.Buffers.Binary;
@@ -32,7 +32,9 @@ namespace CryptoLibrary
             byte[] aad = new byte[8];
             BinaryPrimitives.WriteUInt64BigEndian(aad, _outboundSequence);
 
-            var cipher = new GcmBlockCipher(new AesEngine());
+            // Hardware AES where the CPU offers it (constant-time); table-based AES otherwise,
+            // which includes WebAssembly.
+            var cipher = new GcmBlockCipher(AesUtilities.CreateEngine());
             var parameters = new AeadParameters(new KeyParameter(_key), 128, nonce, aad);
             cipher.Init(true, parameters);
 
@@ -73,7 +75,7 @@ namespace CryptoLibrary
             Array.Copy(package.Ciphertext, 0, input, 0, package.Ciphertext.Length);
             Array.Copy(package.Tag, 0, input, package.Ciphertext.Length, package.Tag.Length);
 
-            var cipher = new GcmBlockCipher(new AesEngine());
+            var cipher = new GcmBlockCipher(AesUtilities.CreateEngine());
             var parameters = new AeadParameters(new KeyParameter(_key), 128, package.Nonce, aad);
 
             string plaintext = "";

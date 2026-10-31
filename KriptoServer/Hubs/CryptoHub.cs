@@ -63,26 +63,19 @@ namespace KriptoServer.Hubs
                 byte[] serverIdentityPublicKey = _bobIdentity.GetPublicKey();
                 byte[] serverEphemeralPublicKey = session.MyEphemeralPub!;
 
-                session.FinalizeHandshake(
-                    Array.Empty<byte>(),
+                byte[] kemCiphertext = session.FinalizeAsServer(
                     clientHello.ClientEphemeralPublicKey,
+                    clientHello.KemEncapsulationKey,
                     clientHello.ClientNonce,
                     serverNonce);
-
-                _activeSessions[clientHello.SessionId] = new ServerSessionState
-                {
-                    Session = session,
-                    ClientNonce = clientHello.ClientNonce,
-                    ServerNonce = serverNonce
-                };
-
-                _connectionSessions[Context.ConnectionId] = clientHello.SessionId;
 
                 byte[] transcript = ProtocolHelpers.BuildHandshakeTranscript(
                     clientHello.ClientNonce,
                     serverNonce,
                     clientHello.ClientEphemeralPublicKey,
                     serverEphemeralPublicKey,
+                    clientHello.KemEncapsulationKey,
+                    kemCiphertext,
                     serverIdentityPublicKey);
 
                 byte[] signature = _bobIdentity.SignData(transcript);
@@ -92,12 +85,22 @@ namespace KriptoServer.Hubs
                     SessionId = clientHello.SessionId,
                     ServerNonce = serverNonce,
                     ServerEphemeralPublicKey = serverEphemeralPublicKey,
+                    KemCiphertext = kemCiphertext,
                     ServerIdentityPublicKey = serverIdentityPublicKey,
-                    Signature = signature
+                    Signature = signature,
+                    ServerFinished = session.CreateServerFinished(signature)
                 };
 
+                _activeSessions[clientHello.SessionId] = new ServerSessionState
+                {
+                    Session = session,
+                    ClientNonce = clientHello.ClientNonce,
+                    ServerNonce = serverNonce
+                };
+                _connectionSessions[Context.ConnectionId] = clientHello.SessionId;
+
                 await Clients.All.SendAsync("ReceiveHandshakePackage", "ServerHello", JsonSerializer.Serialize(serverHello), false);
-                await Clients.Caller.SendAsync("UpdateHandshakeUI", "success", "Bob: ServerHello hazir, oturum anahtari turetildi.");
+                await Clients.Caller.SendAsync("UpdateHandshakeUI", "success", "Bob: ServerHello hazir, ClientFinished bekleniyor.");
             }
             catch (Exception ex)
             {
@@ -127,8 +130,37 @@ namespace KriptoServer.Hubs
                 serverHello.Signature[0] ^= 0xFF;
             else if (attackMode == "PinnedKeyMismatch" && serverHello.ServerIdentityPublicKey.Length > 0)
                 serverHello.ServerIdentityPublicKey[0] ^= 0xFF;
+            else if (attackMode == "FinishedTamper" && serverHello.ServerFinished.Length > 0)
+                serverHello.ServerFinished[0] ^= 0xFF;
 
             await Clients.Caller.SendAsync("FinalizeServerHello", JsonSerializer.Serialize(serverHello));
+        }
+
+        public async Task BobProcessClientFinished(string json, string attackMode)
+        {
+            ClientFinishedMessage? finished;
+            try { finished = JsonSerializer.Deserialize<ClientFinishedMessage>(json); }
+            catch { finished = null; }
+
+            if (finished == null || finished.ClientFinished?.Length != 32 ||
+                !_activeSessions.TryGetValue(finished.SessionId, out var state))
+            {
+                await Clients.Caller.SendAsync("UpdateHandshakeUI", "error", "Bob: Gecersiz ClientFinished.");
+                return;
+            }
+
+            if (attackMode == "FinishedTamper")
+                finished.ClientFinished[0] ^= 0xFF;
+
+            if (state.Session.VerifyClientFinished(finished.ClientFinished))
+            {
+                await Clients.Caller.SendAsync("UpdateHandshakeUI", "success", "Bob: ClientFinished dogrulandi, oturum onaylandi.");
+            }
+            else
+            {
+                _activeSessions.TryRemove(finished.SessionId, out _);
+                await Clients.Caller.SendAsync("UpdateHandshakeUI", "error", "Bob: ClientFinished hatali, oturum kapatildi.");
+            }
         }
 
         public async Task RelayMessage(Guid sessionId, string messageJson, string attackMode)
@@ -139,6 +171,16 @@ namespace KriptoServer.Hubs
                 {
                     Success = false,
                     StatusMessage = "Sunucu bu sessionId icin aktif bir oturum bulamadi."
+                });
+                return;
+            }
+
+            if (!state.Session.IsConfirmed)
+            {
+                await Clients.Caller.SendAsync("ReceiveDeliveryReport", new DeliveryReport
+                {
+                    Success = false,
+                    StatusMessage = "Oturum henuz onaylanmadi: ClientFinished alinmadi."
                 });
                 return;
             }
@@ -166,11 +208,13 @@ namespace KriptoServer.Hubs
             {
                 // client-to-server direction
                 string plaintext = state.Session.ReceiveChannel!.Decrypt(package);
+
+                // The echo goes back encrypted on the server-to-client channel, never in clear.
                 await Clients.Caller.SendAsync("ReceiveDeliveryReport", new DeliveryReport
                 {
                     Success = true,
-                    Plaintext = plaintext,
-                    StatusMessage = $"Bob mesaji dogruladi ve cozumledi: {plaintext}"
+                    StatusMessage = $"Bob kaydi dogruladi (sira {package.SequenceNumber}).",
+                    EncryptedEcho = state.Session.SendChannel!.Encrypt(plaintext)
                 });
             }
             catch (Exception ex)
@@ -185,7 +229,8 @@ namespace KriptoServer.Hubs
 
         private static bool IsValidClientHello(ClientHelloMessage msg) =>
             msg.ClientNonce?.Length == 16 &&
-            msg.ClientEphemeralPublicKey?.Length == 32;
+            msg.ClientEphemeralPublicKey?.Length == 32 &&
+            msg.KemEncapsulationKey?.Length == KemService.EncapsulationKeySize;
 
         private static bool IsValidPackage(SecurePackage pkg) =>
             pkg.Nonce?.Length == 12 &&

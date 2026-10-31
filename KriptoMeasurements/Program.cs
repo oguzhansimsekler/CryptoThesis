@@ -21,7 +21,7 @@ if (args.Contains("--batched"))
     {
         BenchmarkResult r = BenchmarkSuite.Run(benchmark, options);
         batched.Add(r);
-        Console.WriteLine($"{r.Operation,-34} mean {r.MeanMs,9:F4}  median {r.MedianMs,9:F4}  sd {r.StdDevMs,8:F4}  ops/batch {r.OpsPerBatch}");
+        Console.WriteLine($"{r.Operation,-34} mean {r.MeanMs,9:F4}  median {r.MedianMs,9:F4}  p95 {r.P95Ms,9:F4}  sd {r.StdDevMs,8:F4}  ops/batch {r.OpsPerBatch}");
     }
 
     var report = new BenchmarkReport(
@@ -40,6 +40,32 @@ if (args.Contains("--batched"))
     return;
 }
 
+// --dudect [samples]: timing-leakage test (Welch's t-test on two input classes per operation).
+if (args.Contains("--dudect"))
+{
+    int samples = args.SkipWhile(a => a != "--dudect").Skip(1).Select(a => int.TryParse(a, out int n) ? n : 0).FirstOrDefault();
+    if (samples <= 0) samples = 100_000;
+
+    System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.Highest;
+    var dudect = ConstantTimeTest.RunAll(samples);
+    foreach (ConstantTimeResult r in dudect)
+        Console.WriteLine($"{r.Operation,-32} {r.Classes,-42} mean {r.MeanClass0Us,8:F2} / {r.MeanClass1Us,8:F2} us  max|t| {r.MaxAbsT,7:F2}{(r.MaxAbsT > ConstantTimeTest.Threshold ? "  LEAK?" : "")}");
+
+    string dudectPath = Path.Combine(repoRoot, "benchmarks", $"dudect-native-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json");
+    Directory.CreateDirectory(Path.GetDirectoryName(dudectPath)!);
+    File.WriteAllText(dudectPath, JsonSerializer.Serialize(new
+    {
+        Environment = $"Native .NET ({System.Runtime.InteropServices.RuntimeInformation.OSDescription})",
+        Runtime = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+        Samples = samples,
+        Threshold = ConstantTimeTest.Threshold,
+        GeneratedAtUtc = DateTime.UtcNow,
+        Results = dudect
+    }, new JsonSerializerOptions { WriteIndented = true }));
+    Console.WriteLine($"JSON output written to: {dudectPath}");
+    return;
+}
+
 // Prepare inputs up front so that only the operation itself is timed.
 var ed25519Identity = IdentityService.GenerateLongTermIdentity();
 var ed25519PublicKey = ed25519Identity.GetPublicKey();
@@ -47,6 +73,7 @@ var verifierIdentity = new IdentityService(ed25519PublicKey);
 byte[] sampleData32 = RandomNumberGenerator.GetBytes(32);
 byte[] sampleSignature = ed25519Identity.SignData(sampleData32);
 
+var handshakeServerIdentity = IdentityService.CreateFromPrivateSeed(Convert.FromHexString(demoServerSeedHex));
 var handshakeA = new HandshakeService();
 var handshakeB = new HandshakeService();
 byte[] pubB = handshakeB.GetPublicKey();
@@ -142,39 +169,10 @@ foreach (int size in new[] { 1024, 4096, 16384, 65536, 262144 })
 
 results.Add(Measure(
     "Complete Secure Handshake",
-    "ClientHello + ServerHello + transcript signing/verification + HKDF",
+    "Hybrid X25519 + ML-KEM-768 handshake with signature and both Finished messages",
     warmupIterations,
     measurementIterations,
-    () =>
-    {
-        var serverIdentity = IdentityService.CreateFromPrivateSeed(
-            Convert.FromHexString(demoServerSeedHex));
-        var clientIdentity = new IdentityService(ProtocolIdentity.GetPinnedServerPublicKey());
-        var clientSession = new CryptoProtocolSession(clientIdentity, "Client");
-        var serverSession = new CryptoProtocolSession(serverIdentity, "Server");
-        byte[] clientNonce = RandomNumberGenerator.GetBytes(16);
-        byte[] serverNonce = RandomNumberGenerator.GetBytes(16);
-
-        serverSession.FinalizeHandshake(Array.Empty<byte>(), clientSession.MyEphemeralPub!, clientNonce, serverNonce);
-
-        byte[] serverIdentityPublicKey = serverIdentity.GetPublicKey();
-        byte[] transcript = ProtocolHelpers.BuildHandshakeTranscript(
-            clientNonce,
-            serverNonce,
-            clientSession.MyEphemeralPub!,
-            serverSession.MyEphemeralPub!,
-            serverIdentityPublicKey);
-        byte[] signature = serverIdentity.SignData(transcript);
-
-        if (!clientIdentity.VerifySignature(transcript, signature))
-            throw new InvalidOperationException("Handshake benchmark signature verification failed.");
-
-        clientSession.FinalizeHandshake(
-            serverIdentityPublicKey,
-            serverSession.MyEphemeralPub!,
-            clientNonce,
-            serverNonce);
-    }));
+    () => BenchmarkSuite.RunHybridHandshake(handshakeServerIdentity)));
 
 Console.WriteLine("CryptoThesis Measurement Report");
 Console.WriteLine($"Warmup iterations : {warmupIterations}");

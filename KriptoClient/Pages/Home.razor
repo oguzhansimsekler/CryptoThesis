@@ -41,7 +41,7 @@
 
     .stepper-bar {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(6, 1fr);
         gap: 10px;
     }
 
@@ -117,7 +117,8 @@
             <div class="small text-muted mb-2">Attack Guide</div>
             <div class="small mb-3">
                 <div>`ClientHello`: invalid public key, drop</div>
-                <div>`ServerHello`: signature tamper, pinned key mismatch, drop</div>
+                <div>`ServerHello`: signature tamper, pinned key mismatch, Finished tamper, drop</div>
+                <div>`ClientFinished`: Finished tamper, drop</div>
                 <div>`Data`: tag tamper, out-of-order, replay, drop, forged injection</div>
             </div>
             <input type="text" class="form-control form-control-sm mb-2" placeholder="Guvenli mesaj..." @bind="PlainTextMsg" disabled="@(!IsConnected)" />
@@ -156,6 +157,12 @@
                                 {
                                     <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.SignatureTamper))">Imzayi Boz</button>
                                     <button class="btn btn-xs btn-warning py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.PinnedKeyMismatch))">Pinned Key Boz</button>
+                                    <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.FinishedTamper))">Finished Boz</button>
+                                    <button class="btn btn-xs btn-outline-warning py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.Drop))">Dusur</button>
+                                }
+                                else if (pkg.Type == "ClientFinished")
+                                {
+                                    <button class="btn btn-xs btn-danger py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.FinishedTamper))">Finished Boz</button>
                                     <button class="btn btn-xs btn-outline-warning py-1 fw-bold" style="font-size: 0.7rem;" @onclick="@(() => AttackAndForward(pkg, AttackAction.Drop))">Dusur</button>
                                 }
                                 else if (pkg.Type == "Data")
@@ -202,8 +209,9 @@
     {
         new("clienthello", "ClientHello", "Alice ephemeral key ve nonce gonderir"),
         new("serverhello", "ServerHello", "Bob imzali yanit ve kimlik anahtarini gonderir"),
-        new("verify", "Verify", "Alice imzayi ve pinned key eslesmesini dogrular"),
-        new("derive", "Key Derivation", "Iki uc da ECDH + HKDF ile session key turetir"),
+        new("verify", "Verify", "Alice pinned key, imza ve ServerFinished'i dogrular"),
+        new("derive", "Key Derivation", "X25519 + ML-KEM-768 ve HKDF ile oturum anahtarlari"),
+        new("finished", "ClientFinished", "Bob, Alice'in Finished degerini dogrular"),
         new("data", "Secure Data", "AES-GCM ile veri iletilir ve kontrol edilir")
     };
 
@@ -255,9 +263,9 @@
             StateHasChanged();
         });
 
-        hubConnection.On<string>("FinalizeServerHello", json =>
+        hubConnection.On<string>("FinalizeServerHello", async json =>
         {
-            ProcessServerHello(json);
+            await ProcessServerHello(json);
             StateHasChanged();
         });
 
@@ -302,6 +310,11 @@
         {
             await hubConnection!.SendAsync("ForwardToAlice", pkg.JsonContent, "None");
         }
+        else if (pkg.Type == "ClientFinished")
+        {
+            CurrentStep = "finished";
+            await hubConnection!.SendAsync("BobProcessClientFinished", pkg.JsonContent, "None");
+        }
         else if (pkg.Type == "Data")
         {
             CurrentStep = "data";
@@ -339,8 +352,20 @@
         if (pkg.Type == "ServerHello")
         {
             FailedStep = "verify";
-            string mode = attack == AttackAction.PinnedKeyMismatch ? "PinnedKeyMismatch" : "SignatureTamper";
+            string mode = attack switch
+            {
+                AttackAction.PinnedKeyMismatch => "PinnedKeyMismatch",
+                AttackAction.FinishedTamper => "FinishedTamper",
+                _ => "SignatureTamper"
+            };
             await hubConnection!.SendAsync("ForwardToAlice", pkg.JsonContent, mode);
+            return;
+        }
+
+        if (pkg.Type == "ClientFinished")
+        {
+            FailedStep = "finished";
+            await hubConnection!.SendAsync("BobProcessClientFinished", pkg.JsonContent, "FinishedTamper");
             return;
         }
 
@@ -372,7 +397,7 @@
         }
     }
 
-    private void ProcessServerHello(string json)
+    private async Task ProcessServerHello(string json)
     {
         ServerHelloMessage? hello = JsonSerializer.Deserialize<ServerHelloMessage>(json);
         if (hello == null || AliceSession == null || TrustedServerPublicKey == null)
@@ -383,45 +408,45 @@
         AliceStatus = "ServerHello dogrulaniyor...";
         CurrentStep = "verify";
 
-        var verification = ServerHelloVerifier.Verify(
-            TrustedServerPublicKey,
-            _lastAliceNonce,
-            AliceSession.MyEphemeralPub!,
-            hello);
+        var result = ServerHelloVerifier.Complete(AliceSession, TrustedServerPublicKey, _lastAliceNonce, hello);
 
-        if (verification == ServerHelloVerificationResult.PinnedKeyMismatch)
+        string? failure = result switch
         {
-            AliceStatus = "Server kimligi pinli anahtarla eslesmedi.";
-            SecurityEvents.Insert(0, new SecurityEvent { Content = "Pinned key mismatch detected on client.", IsError = true });
+            ServerHelloVerificationResult.PinnedKeyMismatch => "Pinned key mismatch detected on client.",
+            ServerHelloVerificationResult.InvalidSignature => "Ed25519 signature verification failed.",
+            ServerHelloVerificationResult.InvalidKeyMaterial => "Key exchange failed (X25519 or ML-KEM).",
+            ServerHelloVerificationResult.InvalidServerFinished => "ServerFinished verification failed.",
+            _ => null
+        };
+
+        if (failure != null)
+        {
+            AliceStatus = "ServerHello reddedildi. Mudahale saptandi.";
+            SecurityEvents.Insert(0, new SecurityEvent { Content = failure, IsError = true });
             FailedStep = "verify";
             IsHandshakeActive = false;
             return;
         }
 
-        if (verification == ServerHelloVerificationResult.InvalidSignature)
-        {
-            AliceStatus = "Imza hatasi. Mudahale saptandi.";
-            BobStatus = "Bob tarafina ulasmadan paket reddedildi.";
-            SecurityEvents.Insert(0, new SecurityEvent { Content = "Ed25519 signature verification failed.", IsError = true });
-            FailedStep = "verify";
-            IsHandshakeActive = false;
-            return;
-        }
+        CurrentStep = "finished";
+        SecurityEvents.Insert(0, new SecurityEvent { Content = "ServerHello and ServerFinished verified; keys derived.", IsError = false });
 
-        CurrentStep = "derive";
-        AliceSession.FinalizeHandshake(
-            hello.ServerIdentityPublicKey,
-            hello.ServerEphemeralPublicKey,
-            _lastAliceNonce,
-            hello.ServerNonce);
+        var clientFinished = new ClientFinishedMessage
+        {
+            SessionId = _currentSessionId,
+            ClientFinished = AliceSession.CreateClientFinished()
+        };
+        LogPacket("ClientFinished", JsonSerializer.Serialize(clientFinished), false);
 
         AliceStatus = "Guvenli tunel aktif";
-        BobStatus = "Oturum anahtari iki ucta da turetildi.";
-        SecurityEvents.Insert(0, new SecurityEvent { Content = "Handshake completed and session key derived.", IsError = false });
-        CurrentStep = "data";
         FailedStep = null;
         IsConnected = true;
         IsHandshakeActive = false;
+
+        if (CurrentMode == AppMode.Education)
+        {
+            await ForwardPacket(NetworkLog.Last());
+        }
     }
 
     private void ProcessDeliveryReport(DeliveryReport report)
@@ -430,7 +455,19 @@
 
         if (report.Success)
         {
-            BobMessages.Insert(0, new BobMessage { Content = report.StatusMessage, IsError = false });
+            string echo;
+            try
+            {
+                echo = report.EncryptedEcho != null && AliceSession?.ReceiveChannel != null
+                    ? $"Bob'un sifreli yaniti cozuldu: {AliceSession.ReceiveChannel.Decrypt(report.EncryptedEcho)}"
+                    : "Bob'un yaniti eksik.";
+            }
+            catch (Exception ex)
+            {
+                echo = $"Bob'un yaniti reddedildi: {ex.Message}";
+            }
+
+            BobMessages.Insert(0, new BobMessage { Content = echo, IsError = false });
             BobStatus = "Veri dogrulandi ve cozuldu";
             SecurityEvents.Insert(0, new SecurityEvent { Content = report.StatusMessage, IsError = false });
         }
@@ -457,7 +494,8 @@
         {
             SessionId = _currentSessionId,
             ClientNonce = _lastAliceNonce,
-            ClientEphemeralPublicKey = AliceSession.MyEphemeralPub!
+            ClientEphemeralPublicKey = AliceSession.MyEphemeralPub!,
+            KemEncapsulationKey = AliceSession.MyKemEncapsulationKey!
         };
 
         await hubConnection!.SendAsync("PostClientHello", clientHello);
@@ -542,6 +580,7 @@
         AttackAction.InvalidClientKey => "Invalid Public Key",
         AttackAction.SignatureTamper => "Signature Tamper",
         AttackAction.PinnedKeyMismatch => "Pinned Key Mismatch",
+        AttackAction.FinishedTamper => "Finished Tamper",
         AttackAction.TagTamper => "Tag Tamper",
         AttackAction.OutOfOrder => "Out-of-Order",
         AttackAction.Replay => "Replay Attack",
@@ -554,6 +593,7 @@
     {
         "ClientHello" => "serverhello",
         "ServerHello" => "verify",
+        "ClientFinished" => "finished",
         _ => "data"
     };
 
@@ -570,6 +610,7 @@
         InvalidClientKey,
         SignatureTamper,
         PinnedKeyMismatch,
+        FinishedTamper,
         TagTamper,
         OutOfOrder,
         Replay,

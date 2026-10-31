@@ -68,11 +68,15 @@ public class ProtocolSecurityTests
         byte[] serverNonce = RandomNumberGenerator.GetBytes(16);
         byte[] serverIdentityPublicKey = serverIdentity.GetPublicKey();
 
+        byte[] kemCiphertext = serverSession.FinalizeAsServer(
+            clientSession.MyEphemeralPub!, clientSession.MyKemEncapsulationKey!, clientNonce, serverNonce);
         byte[] transcript = ProtocolHelpers.BuildHandshakeTranscript(
             clientNonce,
             serverNonce,
             clientSession.MyEphemeralPub!,
             serverSession.MyEphemeralPub!,
+            clientSession.MyKemEncapsulationKey!,
+            kemCiphertext,
             serverIdentityPublicKey);
 
         byte[] signature = serverIdentity.SignData(transcript);
@@ -105,15 +109,13 @@ public class ProtocolSecurityTests
         byte[] clientNonce = RandomNumberGenerator.GetBytes(16);
         byte[] serverNonce = RandomNumberGenerator.GetBytes(16);
 
-        serverSession.FinalizeHandshake(
-            Array.Empty<byte>(),
-            clientSession.MyEphemeralPub!,
-            clientNonce,
-            serverNonce);
+        byte[] kemCiphertext = serverSession.FinalizeAsServer(
+            clientSession.MyEphemeralPub!, clientSession.MyKemEncapsulationKey!, clientNonce, serverNonce);
 
-        clientSession.FinalizeHandshake(
+        clientSession.FinalizeAsClient(
             serverIdentity.GetPublicKey(),
             serverSession.MyEphemeralPub!,
+            kemCiphertext,
             clientNonce,
             serverNonce);
 

@@ -1,0 +1,116 @@
+(* Control for handshake_pq.pv: the same model with the ML-KEM secret removed from the key
+   derivation (replaced by the public constant nokem). Secrecy should now fail, which shows
+   that the result of handshake_pq.pv depends on ML-KEM and is not vacuous.
+   Run: proverif handshake_pq_nokem.pv *)
+
+(* Post-quantum variant of handshake.pv: harvest now, decrypt later.
+   In phase 1 the attacker also learns every ephemeral X25519 secret, as a quantum computer
+   would let it do from the public keys. Secrecy must then rest on ML-KEM alone.
+   Run: proverif handshake_pq.pv
+
+   Original description:
+
+   Abstractions: X25519 is Diffie-Hellman with the usual equation; ML-KEM-768 is an ideal KEM
+   whose shared secret is the encapsulated value; Ed25519, SHA-256, HKDF-SHA256 and HMAC are
+   free functions; AES-256-GCM is an authenticated encryption with associated data.
+   The server's signing key is published in phase 1, after all sessions of phase 0 have run,
+   so the secrecy query also covers forward secrecy. *)
+
+free c: channel.
+
+type exponent.
+type G.
+type key.
+type sskey.
+type spkey.
+type kemsk.
+type kempk.
+
+(* X25519 *)
+const g: G [data].
+fun exp(G, exponent): G.
+equation forall x: exponent, y: exponent; exp(exp(g, x), y) = exp(exp(g, y), x).
+
+(* Ed25519 *)
+fun spk(sskey): spkey.
+fun sign(bitstring, sskey): bitstring.
+reduc forall m: bitstring, k: sskey; verify(sign(m, k), m, spk(k)) = true.
+
+(* ML-KEM-768 *)
+fun kempub(kemsk): kempk.
+fun kemenc(bitstring, kempk): bitstring.
+reduc forall s: bitstring, k: kemsk; kemdec(kemenc(s, kempub(k)), k) = s.
+
+(* SHA-256, HKDF-SHA256 (one output per label), HMAC-SHA256, AES-256-GCM *)
+fun hash(bitstring): bitstring.
+fun hkdf(G, bitstring, bitstring, bitstring): key.
+fun hmac(key, bitstring): bitstring.
+fun aenc(bitstring, key, bitstring): bitstring.
+reduc forall m: bitstring, k: key, ad: bitstring; adec(aenc(m, k, ad), k, ad) = m.
+
+const labelT, lsf, lcf, lc2s, ls2c, seq1, nokem: bitstring.
+
+free clientSecret: bitstring [private].
+
+event ServerSigned(bitstring, G, kempk, bitstring, G, bitstring).
+event ClientAccepted(bitstring, G, kempk, bitstring, G, bitstring).
+event ServerReceived(bitstring).
+
+(* Secrecy of the client's first record, including forward secrecy. *)
+query attacker(clientSecret).
+
+(* Server authentication: each accepting client session matches a distinct server session
+   that signed the same nonces, keys and ciphertext. *)
+query nc: bitstring, a: G, ek: kempk, ns: bitstring, b: G, ct: bitstring;
+  inj-event(ClientAccepted(nc, a, ek, ns, b, ct)) ==> inj-event(ServerSigned(nc, a, ek, ns, b, ct)).
+
+(* Sanity checks: both should be reported false, which means the honest run reaches
+   client acceptance and the server decrypts the client record. *)
+query nc: bitstring, a: G, ek: kempk, ns: bitstring, b: G, ct: bitstring; event(ClientAccepted(nc, a, ek, ns, b, ct)).
+query event(ServerReceived(clientSecret)).
+
+let Client(pkS: spkey) =
+  new nc: bitstring;
+  new a: exponent;
+  new dk: kemsk;
+  let A = exp(g, a) in
+  let ek = kempub(dk) in
+  (phase 1; out(c, a)) |
+  out(c, (nc, A, ek));
+  in(c, (ns: bitstring, B: G, ct: bitstring, pkRecv: spkey, sig: bitstring, sf: bitstring));
+  if pkRecv = pkS then
+  if verify(sig, (labelT, nc, ns, A, B, ek, ct, pkRecv), pkS) = true then
+  let zpq = kemdec(ct, dk) in
+  let z = exp(B, a) in
+  let h = hash((pkRecv, A, B, ek, ct, nc, ns)) in
+  if sf = hmac(hkdf(z, nokem, h, lsf), (h, sig)) then
+  event ClientAccepted(nc, A, ek, ns, B, ct);
+  out(c, hmac(hkdf(z, nokem, h, lcf), (h, sig, sf)));
+  out(c, aenc(clientSecret, hkdf(z, nokem, h, lc2s), seq1)).
+
+let Server(skS: sskey) =
+  in(c, (nc: bitstring, A: G, ek: kempk));
+  new ns: bitstring;
+  new b: exponent;
+  new zpq: bitstring;
+  let B = exp(g, b) in
+  (phase 1; out(c, b)) |
+  let ct = kemenc(zpq, ek) in
+  let z = exp(A, b) in
+  let pkS = spk(skS) in
+  let h = hash((pkS, A, B, ek, ct, nc, ns)) in
+  let sig = sign((labelT, nc, ns, A, B, ek, ct, pkS), skS) in
+  let sf = hmac(hkdf(z, nokem, h, lsf), (h, sig)) in
+  event ServerSigned(nc, A, ek, ns, B, ct);
+  out(c, (ns, B, ct, pkS, sig, sf));
+  in(c, cf: bitstring);
+  if cf = hmac(hkdf(z, nokem, h, lcf), (h, sig, sf)) then
+  in(c, record: bitstring);
+  let m = adec(record, hkdf(z, nokem, h, lc2s), seq1) in
+  event ServerReceived(m).
+
+process
+  new skS: sskey;
+  let pkS = spk(skS) in
+  out(c, pkS);
+  ( (!Client(pkS)) | (!Server(skS)) | (phase 1; out(c, skS)) )

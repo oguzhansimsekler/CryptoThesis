@@ -1,0 +1,105 @@
+{
+  "Environment": "Native .NET (Microsoft Windows 10.0.26300)",
+  "Runtime": ".NET 7.0.20",
+  "Samples": 1000000,
+  "Threshold": 4.5,
+  "GeneratedAtUtc": "2026-10-31T12:05:59.3661504Z",
+  "Results": [
+    {
+      "Operation": "X25519 shared secret",
+      "Classes": "fixed vs random private key",
+      "Samples": 1000000,
+      "MeanClass0Us": 58.75433723440655,
+      "MeanClass1Us": 58.723457338027245,
+      "TUncropped": 1.4026218456156798,
+      "TCropped50": -0.03855337002115693,
+      "TCropped90": -0.5585811652661415,
+      "TCropped99": -0.5365043184777037,
+      "MaxAbsT": 1.4026218456156798
+    },
+    {
+      "Operation": "Ed25519 sign",
+      "Classes": "fixed vs random 32-byte message",
+      "Samples": 1000000,
+      "MeanClass0Us": 27.356057613892574,
+      "MeanClass1Us": 27.31542973440277,
+      "TUncropped": 2.040230596887705,
+      "TCropped50": 0.7486283586704728,
+      "TCropped90": 3.32220719207569,
+      "TCropped99": 2.4785436717020786,
+      "MaxAbsT": 3.32220719207569
+    },
+    {
+      "Operation": "AES-256-GCM encrypt (1 KB)",
+      "Classes": "fixed vs random plaintext",
+      "Samples": 1000000,
+      "MeanClass0Us": 1.5177574002509613,
+      "MeanClass1Us": 1.5339030342520104,
+      "TUncropped": -6.771941150969647,
+      "TCropped50": -17.34401651085425,
+      "TCropped90": -18.052541127644616,
+      "TCropped99": -13.309902971596449,
+      "MaxAbsT": 18.052541127644616
+    },
+    {
+      "Operation": "UTF-8 encoding (1 KB)",
+      "Classes": "fixed vs random plaintext",
+      "Samples": 1000000,
+      "MeanClass0Us": 0.17885102692048052,
+      "MeanClass1Us": 0.1974665977088155,
+      "TUncropped": -1.8182544700442342,
+      "TCropped50": -20.623282692943434,
+      "TCropped90": -37.21394317680924,
+      "TCropped99": -23.53391228804417,
+      "MaxAbsT": 37.21394317680924
+    },
+    {
+      "Operation": "AES-256-GCM on bytes (1 KB)",
+      "Classes": "fixed vs random plaintext",
+      "Samples": 1000000,
+      "MeanClass0Us": 0.9883252682684726,
+      "MeanClass1Us": 0.9907799901661756,
+      "TUncropped": -1.0635279343835065,
+      "TCropped50": -2.1140824641098592,
+      "TCropped90": -2.715690542377775,
+      "TCropped99": -2.724519490077577,
+      "MaxAbsT": 2.724519490077577
+    },
+    {
+      "Operation": "AES-256-GCM tag check (1 KB)",
+      "Classes": "tag wrong in first byte vs in last byte",
+      "Samples": 1000000,
+      "MeanClass0Us": 9.83495326018696,
+      "MeanClass1Us": 9.838255353021413,
+      "TUncropped": -0.4156047120440719,
+      "TCropped50": -0.019316606434666823,
+      "TCropped90": 0.017185204667785236,
+      "TCropped99": 0.5113256983943405,
+      "MaxAbsT": 0.5113256983943405
+    },
+    {
+      "Operation": "Finished comparison",
+      "Classes": "mismatch in first byte vs in last byte",
+      "Samples": 1000000,
+      "MeanClass0Us": 0.10937328273714964,
+      "MeanClass1Us": 0.10942976617750973,
+      "TUncropped": -0.2250763851833534,
+      "TCropped50": 0,
+      "TCropped90": 0,
+      "TCropped99": -0.10676388012568927,
+      "MaxAbsT": 0.2250763851833534
+    },
+    {
+      "Operation": "ML-KEM-768 decapsulation",
+      "Classes": "valid vs modified ciphertext",
+      "Samples": 1000000,
+      "MeanClass0Us": 58.08732729451924,
+      "MeanClass1Us": 58.11172013841551,
+      "TUncropped": -0.8350802497142203,
+      "TCropped50": -0.3332668725665348,
+      "TCropped90": -0.48304567633396583,
+      "TCropped99": -0.2889566330071339,
+      "MaxAbsT": 0.8350802497142203
+    }
+  ]
+}

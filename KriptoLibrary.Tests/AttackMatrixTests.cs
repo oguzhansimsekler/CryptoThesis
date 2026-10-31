@@ -6,7 +6,8 @@ namespace KriptoLibrary.Tests;
 
 /// <summary>
 /// Each test applies one attack and checks which check rejects the message:
-/// the pinned key, the Ed25519 signature, the AEAD tag, or the sequence number.
+/// the pinned key, the Ed25519 signature, the key exchange, a Finished value,
+/// the AEAD tag, or the sequence number.
 /// </summary>
 public class AttackMatrixTests
 {
@@ -21,7 +22,7 @@ public class AttackMatrixTests
         tamperedKey[0] ^= 0xFF; // same change as the hub's "InvalidClientKey" mode
 
         // X25519 accepts any 32 bytes as a public key, so the server does not fail here.
-        ServerHelloMessage hello = ServerRespond(client.Nonce, tamperedKey);
+        ServerHelloMessage hello = ServerRespond(client.Nonce, tamperedKey, client.Session.MyKemEncapsulationKey!, out _);
 
         Assert.Equal(ServerHelloVerificationResult.InvalidSignature, ClientVerify(client, hello));
     }
@@ -33,7 +34,7 @@ public class AttackMatrixTests
         byte[] tamperedNonce = (byte[])client.Nonce.Clone();
         tamperedNonce[0] ^= 0xFF;
 
-        ServerHelloMessage hello = ServerRespond(tamperedNonce, client.Session.MyEphemeralPub!);
+        ServerHelloMessage hello = ServerRespond(tamperedNonce, client.Session.MyEphemeralPub!, client.Session.MyKemEncapsulationKey!, out _);
 
         Assert.Equal(ServerHelloVerificationResult.InvalidSignature, ClientVerify(client, hello));
     }
@@ -42,7 +43,7 @@ public class AttackMatrixTests
     public void A3_ServerEphemeralKeySubstitution_IsRejectedByClientSignatureCheck()
     {
         var client = NewClientHello();
-        ServerHelloMessage hello = ServerRespond(client.Nonce, client.Session.MyEphemeralPub!);
+        ServerHelloMessage hello = ServerRespond(client);
 
         hello.ServerEphemeralPublicKey = new HandshakeService().GetPublicKey(); // attacker's key
 
@@ -53,7 +54,7 @@ public class AttackMatrixTests
     public void A4_ServerNonceTamper_IsRejectedByClientSignatureCheck()
     {
         var client = NewClientHello();
-        ServerHelloMessage hello = ServerRespond(client.Nonce, client.Session.MyEphemeralPub!);
+        ServerHelloMessage hello = ServerRespond(client);
 
         hello.ServerNonce[0] ^= 0xFF;
 
@@ -64,7 +65,7 @@ public class AttackMatrixTests
     public void A5_SignatureTamper_IsRejectedByClientSignatureCheck()
     {
         var client = NewClientHello();
-        ServerHelloMessage hello = ServerRespond(client.Nonce, client.Session.MyEphemeralPub!);
+        ServerHelloMessage hello = ServerRespond(client);
 
         hello.Signature[0] ^= 0xFF; // same change as the hub's "SignatureTamper" mode
 
@@ -75,7 +76,7 @@ public class AttackMatrixTests
     public void A6_ServerIdentityKeyTamper_IsRejectedByPinnedKeyCheck()
     {
         var client = NewClientHello();
-        ServerHelloMessage hello = ServerRespond(client.Nonce, client.Session.MyEphemeralPub!);
+        ServerHelloMessage hello = ServerRespond(client);
 
         hello.ServerIdentityPublicKey[0] ^= 0xFF; // same change as the hub's "PinnedKeyMismatch" mode
 
@@ -87,17 +88,13 @@ public class AttackMatrixTests
     {
         var client = NewClientHello();
         var attackerIdentity = IdentityService.GenerateLongTermIdentity();
-        var attackerSession = new CryptoProtocolSession(attackerIdentity, "Server");
-        byte[] serverNonce = RandomNumberGenerator.GetBytes(16);
 
         // The attacker sends its own identity key and signs the transcript with it.
-        ServerHelloMessage ownIdentity = SignHello(attackerIdentity, attackerIdentity.GetPublicKey(),
-            client.Nonce, serverNonce, client.Session.MyEphemeralPub!, attackerSession.MyEphemeralPub!);
+        ServerHelloMessage ownIdentity = AttackerRespond(client, attackerIdentity, attackerIdentity.GetPublicKey());
         Assert.Equal(ServerHelloVerificationResult.PinnedKeyMismatch, ClientVerify(client, ownIdentity));
 
         // The attacker claims the pinned key but signs with its own key.
-        ServerHelloMessage claimedIdentity = SignHello(attackerIdentity, ProtocolIdentity.GetPinnedServerPublicKey(),
-            client.Nonce, serverNonce, client.Session.MyEphemeralPub!, attackerSession.MyEphemeralPub!);
+        ServerHelloMessage claimedIdentity = AttackerRespond(client, attackerIdentity, ProtocolIdentity.GetPinnedServerPublicKey());
         Assert.Equal(ServerHelloVerificationResult.InvalidSignature, ClientVerify(client, claimedIdentity));
     }
 
@@ -118,7 +115,7 @@ public class AttackMatrixTests
     public void A17_ServerHelloReplayedFromEarlierSession_IsRejectedByClientSignatureCheck()
     {
         var earlierClient = NewClientHello();
-        ServerHelloMessage recorded = ServerRespond(earlierClient.Nonce, earlierClient.Session.MyEphemeralPub!);
+        ServerHelloMessage recorded = ServerRespond(earlierClient);
 
         // The old signature covers the old nonces and keys.
         var newClient = NewClientHello();
@@ -132,38 +129,96 @@ public class AttackMatrixTests
         var client = NewClientHello();
         byte[] pinned = ProtocolIdentity.GetPinnedServerPublicKey();
 
-        // Session 1: the attacker acts as a client towards the real server.
+        // Session 1: the attacker acts as a client towards the real server and completes the handshake.
         var attackerAsClient = new CryptoProtocolSession(new IdentityService(pinned), "Client");
         byte[] attackerNonce = RandomNumberGenerator.GetBytes(16);
-        ServerHelloMessage fromServer = ServerRespond(attackerNonce, attackerAsClient.MyEphemeralPub!, out var server);
-        attackerAsClient.FinalizeHandshake(
-            fromServer.ServerIdentityPublicKey, fromServer.ServerEphemeralPublicKey, attackerNonce, fromServer.ServerNonce);
+        ServerHelloMessage fromServer = ServerRespond(attackerNonce, attackerAsClient.MyEphemeralPub!,
+            attackerAsClient.MyKemEncapsulationKey!, out var server);
+        Assert.Equal(ServerHelloVerificationResult.Accepted,
+            ServerHelloVerifier.Complete(attackerAsClient, pinned, attackerNonce, fromServer));
+        Assert.True(server.VerifyClientFinished(attackerAsClient.CreateClientFinished()));
 
-        // Session 2: the attacker acts as the server towards the client, with its own ephemeral key,
-        // the pinned identity key, and the real server's signature from session 1.
-        var attackerAsServer = new HandshakeService();
+        // Session 2: the attacker acts as the server towards the client. It knows the keys of this
+        // half, so it can compute a valid ServerFinished; it can only reuse the server's signature.
+        var attackerEph = new HandshakeService();
         byte[] attackerServerNonce = RandomNumberGenerator.GetBytes(16);
+        var (kemCiphertext, kemSecret) = KemService.Encapsulate(client.Session.MyKemEncapsulationKey!);
+        byte[] transcriptHash = ProtocolHelpers.CalculateCanonicalTranscriptHash(
+            ProtocolHelpers.GetAnonymousIdentityPlaceholder(), pinned, client.Session.MyEphemeralPub!,
+            attackerEph.GetPublicKey(), client.Session.MyKemEncapsulationKey!, kemCiphertext, client.Nonce, attackerServerNonce);
+        var keys = KeySchedule.DeriveSessionKeys(
+            Concat(attackerEph.DeriveSharedSecret(client.Session.MyEphemeralPub!), kemSecret), transcriptHash);
         var forged = new ServerHelloMessage
         {
             ServerNonce = attackerServerNonce,
-            ServerEphemeralPublicKey = attackerAsServer.GetPublicKey(),
+            ServerEphemeralPublicKey = attackerEph.GetPublicKey(),
+            KemCiphertext = kemCiphertext,
             ServerIdentityPublicKey = pinned,
-            Signature = fromServer.Signature
+            Signature = fromServer.Signature,
+            ServerFinished = ProtocolHelpers.ComputeServerFinished(keys.ServerFinishedKey, transcriptHash, fromServer.Signature)
         };
 
         Assert.Equal(ServerHelloVerificationResult.InvalidSignature, ClientVerify(client, forged));
 
-        // Without the signature check (the unauthenticated design), both halves succeed.
-        client.Session.FinalizeHandshake(pinned, forged.ServerEphemeralPublicKey, client.Nonce, attackerServerNonce);
-        byte[] transcriptHash = ProtocolHelpers.CalculateCanonicalTranscriptHash(
-            ProtocolHelpers.GetAnonymousIdentityPlaceholder(), pinned,
-            client.Session.MyEphemeralPub!, forged.ServerEphemeralPublicKey, client.Nonce, attackerServerNonce);
-        var keys = KeySchedule.DeriveSessionKeys(attackerAsServer.DeriveSharedSecret(client.Session.MyEphemeralPub!), transcriptHash);
-        var attackerReads = new SecureChannel(keys.ClientToServerKey, keys.ClientToServerNonce);
+        // Without the signature check, the key exchange and even the Finished check succeed.
+        client.Session.FinalizeAsClient(pinned, forged.ServerEphemeralPublicKey, kemCiphertext, client.Nonce, attackerServerNonce);
+        Assert.True(client.Session.VerifyServerFinished(forged.Signature, forged.ServerFinished));
 
+        var attackerReads = new SecureChannel(keys.ClientToServerKey, keys.ClientToServerNonce);
         SecurePackage fromClient = client.Session.SendChannel!.Encrypt("gizli");
         Assert.Equal("gizli", attackerReads.Decrypt(fromClient));
         Assert.Equal("gizli", server.ReceiveChannel!.Decrypt(attackerAsClient.SendChannel!.Encrypt("gizli")));
+    }
+
+    [Fact]
+    public void A20_KemCiphertextTamper_IsRejectedByClientSignatureCheck()
+    {
+        var client = NewClientHello();
+        ServerHelloMessage hello = ServerRespond(client);
+
+        hello.KemCiphertext[0] ^= 0xFF;
+
+        Assert.Equal(ServerHelloVerificationResult.InvalidSignature, ClientVerify(client, hello));
+    }
+
+    [Fact]
+    public void A21_ClientKemKeyReplacedByAttackerKey_IsRejectedByClientSignatureCheck()
+    {
+        var client = NewClientHello();
+        var attackerKem = new KemService();
+
+        // The server encapsulates to the attacker, who could then decapsulate the post-quantum secret.
+        ServerHelloMessage hello = ServerRespond(client.Nonce, client.Session.MyEphemeralPub!, attackerKem.EncapsulationKey, out _);
+
+        Assert.Equal(ServerHelloVerificationResult.InvalidSignature, ClientVerify(client, hello));
+    }
+
+    [Fact]
+    public void A22_ServerFinishedTamper_IsRejectedByClientFinishedCheck()
+    {
+        var client = NewClientHello();
+        ServerHelloMessage hello = ServerRespond(client);
+
+        hello.ServerFinished[0] ^= 0xFF; // same change as the hub's "FinishedTamper" mode
+
+        Assert.Equal(ServerHelloVerificationResult.Accepted, ClientVerify(client, hello));
+        Assert.Equal(ServerHelloVerificationResult.InvalidServerFinished, ClientComplete(client, hello));
+        Assert.False(client.Session.IsConfirmed);
+    }
+
+    [Fact]
+    public void A23_ClientFinishedTamper_IsRejectedByServerFinishedCheck()
+    {
+        var client = NewClientHello();
+        ServerHelloMessage hello = ServerRespond(client.Nonce, client.Session.MyEphemeralPub!,
+            client.Session.MyKemEncapsulationKey!, out var server);
+        Assert.Equal(ServerHelloVerificationResult.Accepted, ClientComplete(client, hello));
+
+        byte[] clientFinished = client.Session.CreateClientFinished();
+        clientFinished[0] ^= 0xFF; // same change as the hub's "FinishedTamper" mode
+
+        Assert.False(server.VerifyClientFinished(clientFinished));
+        Assert.False(server.IsConfirmed);
     }
 
     [Fact]
@@ -274,54 +329,58 @@ public class AttackMatrixTests
         new CryptoProtocolSession(new IdentityService(ProtocolIdentity.GetPinnedServerPublicKey()), "Client"),
         RandomNumberGenerator.GetBytes(16));
 
-    // Same steps as CryptoHub.BobProcessClientHello: the server signs what it received.
-    private static ServerHelloMessage ServerRespond(byte[] receivedClientNonce, byte[] receivedClientEph) =>
-        ServerRespond(receivedClientNonce, receivedClientEph, out _);
+    private static ServerHelloMessage ServerRespond(ClientHello client) =>
+        ServerRespond(client.Nonce, client.Session.MyEphemeralPub!, client.Session.MyKemEncapsulationKey!, out _);
 
-    private static ServerHelloMessage ServerRespond(byte[] receivedClientNonce, byte[] receivedClientEph,
+    // Same steps as CryptoHub.BobProcessClientHello: the server signs what it received.
+    private static ServerHelloMessage ServerRespond(byte[] receivedNonce, byte[] receivedEph, byte[] receivedKemKey,
         out CryptoProtocolSession serverSession)
     {
         IdentityService serverIdentity = ServerIdentity();
         serverSession = new CryptoProtocolSession(serverIdentity, "Server");
-        byte[] serverNonce = RandomNumberGenerator.GetBytes(16);
-
-        serverSession.FinalizeHandshake(Array.Empty<byte>(), receivedClientEph, receivedClientNonce, serverNonce);
-
-        return SignHello(serverIdentity, serverIdentity.GetPublicKey(),
-            receivedClientNonce, serverNonce, receivedClientEph, serverSession.MyEphemeralPub!);
+        return Respond(serverSession, serverIdentity, serverIdentity.GetPublicKey(), receivedNonce, receivedEph, receivedKemKey);
     }
 
-    private static ServerHelloMessage SignHello(IdentityService signer, byte[] advertisedIdentityKey,
-        byte[] clientNonce, byte[] serverNonce, byte[] clientEph, byte[] serverEph)
+    private static ServerHelloMessage AttackerRespond(ClientHello client, IdentityService attackerIdentity, byte[] advertisedIdentityKey) =>
+        Respond(new CryptoProtocolSession(attackerIdentity, "Server"), attackerIdentity, advertisedIdentityKey,
+            client.Nonce, client.Session.MyEphemeralPub!, client.Session.MyKemEncapsulationKey!);
+
+    private static ServerHelloMessage Respond(CryptoProtocolSession session, IdentityService signer, byte[] advertisedIdentityKey,
+        byte[] clientNonce, byte[] clientEph, byte[] clientKemKey)
     {
+        byte[] serverNonce = RandomNumberGenerator.GetBytes(16);
+        byte[] kemCiphertext = session.FinalizeAsServer(clientEph, clientKemKey, clientNonce, serverNonce);
         byte[] transcript = ProtocolHelpers.BuildHandshakeTranscript(
-            clientNonce, serverNonce, clientEph, serverEph, advertisedIdentityKey);
+            clientNonce, serverNonce, clientEph, session.MyEphemeralPub!, clientKemKey, kemCiphertext, advertisedIdentityKey);
+        byte[] signature = signer.SignData(transcript);
 
         return new ServerHelloMessage
         {
             SessionId = Guid.NewGuid(),
             ServerNonce = serverNonce,
-            ServerEphemeralPublicKey = serverEph,
+            ServerEphemeralPublicKey = session.MyEphemeralPub!,
+            KemCiphertext = kemCiphertext,
             ServerIdentityPublicKey = advertisedIdentityKey,
-            Signature = signer.SignData(transcript)
+            Signature = signature,
+            ServerFinished = session.CreateServerFinished(signature)
         };
     }
 
     private static ServerHelloVerificationResult ClientVerify(ClientHello client, ServerHelloMessage hello) =>
-        ServerHelloVerifier.Verify(
-            ProtocolIdentity.GetPinnedServerPublicKey(),
-            client.Nonce,
-            client.Session.MyEphemeralPub!,
-            hello);
+        ServerHelloVerifier.Verify(ProtocolIdentity.GetPinnedServerPublicKey(), client.Nonce,
+            client.Session.MyEphemeralPub!, client.Session.MyKemEncapsulationKey!, hello);
+
+    private static ServerHelloVerificationResult ClientComplete(ClientHello client, ServerHelloMessage hello) =>
+        ServerHelloVerifier.Complete(client.Session, ProtocolIdentity.GetPinnedServerPublicKey(), client.Nonce, hello);
 
     private static (CryptoProtocolSession Client, CryptoProtocolSession Server) Establish()
     {
         var client = NewClientHello();
-        ServerHelloMessage hello = ServerRespond(client.Nonce, client.Session.MyEphemeralPub!, out var server);
+        ServerHelloMessage hello = ServerRespond(client.Nonce, client.Session.MyEphemeralPub!,
+            client.Session.MyKemEncapsulationKey!, out var server);
 
-        Assert.Equal(ServerHelloVerificationResult.Accepted, ClientVerify(client, hello));
-        client.Session.FinalizeHandshake(
-            hello.ServerIdentityPublicKey, hello.ServerEphemeralPublicKey, client.Nonce, hello.ServerNonce);
+        Assert.Equal(ServerHelloVerificationResult.Accepted, ClientComplete(client, hello));
+        Assert.True(server.VerifyClientFinished(client.Session.CreateClientFinished()));
 
         return (client.Session, server);
     }
@@ -331,5 +390,13 @@ public class AttackMatrixTests
         Exception ex = Assert.Throws<Exception>(() => receiver.Decrypt(package));
         Assert.Contains(expectedReason, ex.Message);
         return ex;
+    }
+
+    private static byte[] Concat(byte[] a, byte[] b)
+    {
+        byte[] result = new byte[a.Length + b.Length];
+        Buffer.BlockCopy(a, 0, result, 0, a.Length);
+        Buffer.BlockCopy(b, 0, result, a.Length, b.Length);
+        return result;
     }
 }

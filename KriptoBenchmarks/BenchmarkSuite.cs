@@ -24,6 +24,7 @@ public sealed record BenchmarkResult(
     int Batches,
     double MeanMs,
     double MedianMs,
+    double P95Ms,
     double MinMs,
     double MaxMs,
     double StdDevMs);
@@ -46,7 +47,7 @@ public static class BenchmarkSuite
     public const string Methodology =
         "Batched timing: after a time-based warm-up, each batch runs the operation enough times to last " +
         "about TargetBatchMs; the per-operation latency of a batch is its elapsed time divided by the number " +
-        "of operations. Statistics are computed over the per-batch values.";
+        "of operations. Statistics, including the 95th percentile, are computed over the per-batch values.";
 
     // Same demo seed as in ProtocolIdentity; not a secret.
     private const string DemoServerSeedHex = "1E99423A4ED27608A15A2616DE1B5B3F4A8E7D3C2B1A09182736455463728190";
@@ -63,14 +64,25 @@ public static class BenchmarkSuite
         byte[] sampleSignature = ed25519Identity.SignData(sampleData32);
         var handshakeA = new HandshakeService();
         byte[] pubB = new HandshakeService().GetPublicKey();
-        byte[] hkdfSharedSecret = RandomNumberGenerator.GetBytes(32);
-        byte[] hkdfTranscriptHash = RandomNumberGenerator.GetBytes(32);
+        var kem = new KemService();
+        var (kemCiphertext, _) = KemService.Encapsulate(kem.EncapsulationKey);
+        byte[] ikm = RandomNumberGenerator.GetBytes(64);
+        byte[] transcriptHash = RandomNumberGenerator.GetBytes(32);
         byte[] transcriptPayload = RandomNumberGenerator.GetBytes(160);
+        byte[] finishedKey = RandomNumberGenerator.GetBytes(32);
+        byte[] signature64 = RandomNumberGenerator.GetBytes(64);
+        var serverIdentity = IdentityService.CreateFromPrivateSeed(Convert.FromHexString(DemoServerSeedHex));
 
         cases.Add(new("X25519 Key Generation", "Fresh ephemeral X25519 key-pair generation",
             () => _ = new HandshakeService()));
         cases.Add(new("X25519 ECDH (Shared Secret)", "Shared-secret derivation against a fixed peer key",
             () => handshakeA.DeriveSharedSecret(pubB)));
+        cases.Add(new("ML-KEM-768 Key Generation", "Client key pair for the post-quantum half",
+            () => _ = new KemService()));
+        cases.Add(new("ML-KEM-768 Encapsulation", "Server side, against a fixed encapsulation key",
+            () => KemService.Encapsulate(kem.EncapsulationKey)));
+        cases.Add(new("ML-KEM-768 Decapsulation", "Client side, against a fixed ciphertext",
+            () => kem.Decapsulate(kemCiphertext)));
         cases.Add(new("Ed25519 Sign", "Signature over a fixed 32-byte transcript fragment",
             () => ed25519Identity.SignData(sampleData32)));
         cases.Add(new("Ed25519 Verify", "Verification using the pinned public key",
@@ -82,8 +94,10 @@ public static class BenchmarkSuite
                 digest.BlockUpdate(transcriptPayload, 0, transcriptPayload.Length);
                 digest.DoFinal(new byte[32], 0);
             }));
-        cases.Add(new("HKDF Key Derivation", "Transcript-bound session key derivation from fixed inputs",
-            () => _ = KeySchedule.DeriveSessionKeys(hkdfSharedSecret, hkdfTranscriptHash)));
+        cases.Add(new("HKDF Key Derivation", "152 bytes of session keys from a 64-byte hybrid secret",
+            () => _ = KeySchedule.DeriveSessionKeys(ikm, transcriptHash)));
+        cases.Add(new("Finished MAC", "HMAC-SHA256 over the transcript hash and signature",
+            () => ProtocolHelpers.ComputeServerFinished(finishedKey, transcriptHash, signature64)));
 
         foreach (int size in PayloadSizes)
         {
@@ -104,9 +118,12 @@ public static class BenchmarkSuite
                 () => new SecureChannel(key, nonceBase).Decrypt(package)));
         }
 
-        cases.Add(new("Complete Secure Handshake",
-            "ClientHello + ServerHello + transcript signing/verification + HKDF on both sides",
-            RunHandshake));
+        cases.Add(new("Complete Handshake (classical)",
+            "X25519 only: both sides, signature, client checks, HKDF, both Finished messages",
+            () => RunClassicalHandshake(serverIdentity)));
+        cases.Add(new("Complete Handshake (hybrid)",
+            "X25519 + ML-KEM-768 as deployed: both sides, signature, client checks, HKDF, both Finished messages",
+            () => RunHybridHandshake(serverIdentity)));
 
         return cases;
     }
@@ -136,39 +153,81 @@ public static class BenchmarkSuite
         Array.Sort(samples);
         double mean = samples.Average();
         double variance = samples.Sum(s => (s - mean) * (s - mean)) / Math.Max(1, samples.Length - 1);
-        int mid = samples.Length / 2;
-        double median = samples.Length % 2 == 0 ? (samples[mid - 1] + samples[mid]) / 2 : samples[mid];
 
         return new BenchmarkResult(benchmark.Operation, benchmark.Notes, opsPerBatch, options.Batches,
-            mean, median, samples[0], samples[^1], Math.Sqrt(variance));
+            mean, Percentile(samples, 0.50), Percentile(samples, 0.95), samples[0], samples[^1], Math.Sqrt(variance));
     }
 
-    private static void RunHandshake()
+    // Linear interpolation between closest ranks on sorted data.
+    private static double Percentile(double[] sorted, double p)
     {
-        var serverIdentity = IdentityService.CreateFromPrivateSeed(Convert.FromHexString(DemoServerSeedHex));
-        var clientSession = new CryptoProtocolSession(new IdentityService(ProtocolIdentity.GetPinnedServerPublicKey()), "Client");
-        var serverSession = new CryptoProtocolSession(serverIdentity, "Server");
+        double rank = p * (sorted.Length - 1);
+        int lower = (int)Math.Floor(rank);
+        int upper = Math.Min(lower + 1, sorted.Length - 1);
+        return sorted[lower] + (rank - lower) * (sorted[upper] - sorted[lower]);
+    }
+
+    public static void RunHybridHandshake(IdentityService serverIdentity)
+    {
+        byte[] pinned = ProtocolIdentity.GetPinnedServerPublicKey();
+        var client = new CryptoProtocolSession(new IdentityService(pinned), "Client");
+        var server = new CryptoProtocolSession(serverIdentity, "Server");
         byte[] clientNonce = RandomNumberGenerator.GetBytes(16);
         byte[] serverNonce = RandomNumberGenerator.GetBytes(16);
 
-        serverSession.FinalizeHandshake(Array.Empty<byte>(), clientSession.MyEphemeralPub!, clientNonce, serverNonce);
-
-        byte[] serverIdentityPublicKey = serverIdentity.GetPublicKey();
-        byte[] transcript = ProtocolHelpers.BuildHandshakeTranscript(
-            clientNonce, serverNonce, clientSession.MyEphemeralPub!, serverSession.MyEphemeralPub!, serverIdentityPublicKey);
+        byte[] kemCiphertext = server.FinalizeAsServer(client.MyEphemeralPub!, client.MyKemEncapsulationKey!, clientNonce, serverNonce);
+        byte[] transcript = ProtocolHelpers.BuildHandshakeTranscript(clientNonce, serverNonce,
+            client.MyEphemeralPub!, server.MyEphemeralPub!, client.MyKemEncapsulationKey!, kemCiphertext, pinned);
+        byte[] signature = serverIdentity.SignData(transcript);
         var hello = new ServerHelloMessage
         {
             ServerNonce = serverNonce,
-            ServerEphemeralPublicKey = serverSession.MyEphemeralPub!,
-            ServerIdentityPublicKey = serverIdentityPublicKey,
-            Signature = serverIdentity.SignData(transcript)
+            ServerEphemeralPublicKey = server.MyEphemeralPub!,
+            KemCiphertext = kemCiphertext,
+            ServerIdentityPublicKey = pinned,
+            Signature = signature,
+            ServerFinished = server.CreateServerFinished(signature)
         };
 
-        if (ServerHelloVerifier.Verify(ProtocolIdentity.GetPinnedServerPublicKey(), clientNonce,
-                clientSession.MyEphemeralPub!, hello) != ServerHelloVerificationResult.Accepted)
-            throw new InvalidOperationException("Handshake benchmark verification failed.");
+        if (ServerHelloVerifier.Complete(client, pinned, clientNonce, hello) != ServerHelloVerificationResult.Accepted ||
+            !server.VerifyClientFinished(client.CreateClientFinished()))
+            throw new InvalidOperationException("Hybrid handshake benchmark failed.");
+    }
 
-        clientSession.FinalizeHandshake(serverIdentityPublicKey, serverSession.MyEphemeralPub!, clientNonce, serverNonce);
+    // The same handshake without the ML-KEM half, for comparison only; the protocol always runs hybrid.
+    private static void RunClassicalHandshake(IdentityService serverIdentity)
+    {
+        byte[] pinned = ProtocolIdentity.GetPinnedServerPublicKey();
+        byte[] none = Array.Empty<byte>();
+        var clientEph = new HandshakeService();
+        var serverEph = new HandshakeService();
+        byte[] clientNonce = RandomNumberGenerator.GetBytes(16);
+        byte[] serverNonce = RandomNumberGenerator.GetBytes(16);
+        byte[] a = clientEph.GetPublicKey();
+        byte[] b = serverEph.GetPublicKey();
+        byte[] anonymous = ProtocolHelpers.GetAnonymousIdentityPlaceholder();
+
+        // Server
+        byte[] serverHash = ProtocolHelpers.CalculateCanonicalTranscriptHash(anonymous, pinned, a, b, none, none, clientNonce, serverNonce);
+        var serverKeys = KeySchedule.DeriveSessionKeys(serverEph.DeriveSharedSecret(a), serverHash);
+        byte[] signature = serverIdentity.SignData(ProtocolHelpers.BuildHandshakeTranscript(clientNonce, serverNonce, a, b, none, none, pinned));
+        byte[] serverFinished = ProtocolHelpers.ComputeServerFinished(serverKeys.ServerFinishedKey, serverHash, signature);
+
+        // Client
+        var verifier = new IdentityService(pinned);
+        if (!verifier.VerifySignature(ProtocolHelpers.BuildHandshakeTranscript(clientNonce, serverNonce, a, b, none, none, pinned), signature))
+            throw new InvalidOperationException("Classical handshake benchmark failed.");
+        byte[] clientHash = ProtocolHelpers.CalculateCanonicalTranscriptHash(anonymous, pinned, a, b, none, none, clientNonce, serverNonce);
+        var clientKeys = KeySchedule.DeriveSessionKeys(clientEph.DeriveSharedSecret(b), clientHash);
+        if (!ProtocolHelpers.FixedTimeEquals(serverFinished,
+                ProtocolHelpers.ComputeServerFinished(clientKeys.ServerFinishedKey, clientHash, signature)))
+            throw new InvalidOperationException("Classical handshake benchmark failed.");
+        byte[] clientFinished = ProtocolHelpers.ComputeClientFinished(clientKeys.ClientFinishedKey, clientHash, signature, serverFinished);
+
+        // Server checks the client's Finished.
+        if (!ProtocolHelpers.FixedTimeEquals(clientFinished,
+                ProtocolHelpers.ComputeClientFinished(serverKeys.ClientFinishedKey, serverHash, signature, serverFinished)))
+            throw new InvalidOperationException("Classical handshake benchmark failed.");
     }
 
     private static double ElapsedMs(long startTimestamp) =>

@@ -33,25 +33,32 @@
 
 @if (_results.Count > 0)
 {
-    <table class="table table-sm table-striped mt-3">
-        <thead>
-            <tr><th>Operation</th><th>Mean (ms)</th><th>Median (ms)</th><th>SD (ms)</th><th>Min</th><th>Max</th><th>Ops/batch</th></tr>
-        </thead>
-        <tbody>
-            @foreach (var r in _results)
-            {
-                <tr>
-                    <td>@r.Operation</td>
-                    <td>@r.MeanMs.ToString("F4")</td>
-                    <td>@r.MedianMs.ToString("F4")</td>
-                    <td>@r.StdDevMs.ToString("F4")</td>
-                    <td>@r.MinMs.ToString("F4")</td>
-                    <td>@r.MaxMs.ToString("F4")</td>
-                    <td>@r.OpsPerBatch</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    @ResultTable(_results)
+}
+
+<h2 class="h4 mt-5">JavaScript baselines</h2>
+<p>
+    The same operations with the browser's Web Cryptography API and with the pure-JavaScript noble libraries.
+    ML-KEM has no counterpart in either, so only the classical handshake is compared.
+</p>
+
+<button class="btn btn-primary" @onclick='() => RunJsAsync("webcrypto")' disabled="@(_jsRunning != null)">
+    @(_jsRunning == "webcrypto" ? "Running WebCrypto..." : "Run WebCrypto")
+</button>
+<button class="btn btn-primary ms-2" @onclick='() => RunJsAsync("noble")' disabled="@(_jsRunning != null)">
+    @(_jsRunning == "noble" ? "Running noble..." : "Run noble")
+</button>
+@if (_jsJson is not null)
+{
+    <button class="btn btn-outline-secondary ms-2" @onclick="DownloadJsAsync">Download JSON (@_jsEngine)</button>
+}
+@if (_jsError is not null)
+{
+    <div class="alert alert-warning mt-3">@_jsError</div>
+}
+@if (_jsReport is not null)
+{
+    @ResultTable(_jsReport.Results)
 }
 
 @code {
@@ -107,6 +114,78 @@
     {
         string json = JsonSerializer.Serialize(_report, new JsonSerializerOptions { WriteIndented = true });
         await JS.InvokeVoidAsync("kriptoBench.download",
-            $"wasm-{ExecutionMode.ToLowerInvariant()}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json", json);
+            $"wasm-v3-{BrowserName}-{ExecutionMode.ToLowerInvariant()}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json", json);
     }
+
+    private string? _jsRunning;
+    private string? _jsEngine;
+    private string? _jsJson;
+    private string? _jsError;
+    private BenchmarkReport? _jsReport;
+
+    private async Task RunJsAsync(string engine)
+    {
+        _jsRunning = engine;
+        _jsError = null;
+        _jsJson = null;
+        _jsReport = null;
+        StateHasChanged();
+
+        try
+        {
+            _jsJson = await JS.InvokeAsync<string>("kriptoJsBench.run", engine);
+            _jsReport = JsonSerializer.Deserialize<BenchmarkReport>(_jsJson);
+            _jsEngine = engine;
+        }
+        catch (JSException ex)
+        {
+            _jsError = ex.Message;
+        }
+        finally
+        {
+            _jsRunning = null;
+        }
+    }
+
+    private async Task DownloadJsAsync()
+    {
+        await JS.InvokeVoidAsync("kriptoBench.download", $"js-v3-{BrowserName}-{_jsEngine}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json", _jsJson);
+    }
+
+    // Used in file names so that results from different browsers cannot be mixed up.
+    private string BrowserName
+    {
+        get
+        {
+            string ua = _environment?.UserAgent ?? "";
+            if (ua.Contains("Firefox/")) return "firefox";
+            if (ua.Contains("Edg/")) return "edge";
+            if (ua.Contains("Chrome/")) return "chrome";
+            return "browser";
+        }
+    }
+
+    private static RenderFragment ResultTable(IEnumerable<BenchmarkResult> results) => __builder =>
+    {
+        <table class="table table-sm table-striped mt-3">
+            <thead>
+                <tr><th>Operation</th><th>Mean (ms)</th><th>Median (ms)</th><th>P95 (ms)</th><th>SD (ms)</th><th>Min</th><th>Max</th><th>Ops/batch</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var r in results)
+                {
+                    <tr>
+                        <td>@r.Operation</td>
+                        <td>@r.MeanMs.ToString("F4")</td>
+                        <td>@r.MedianMs.ToString("F4")</td>
+                        <td>@r.P95Ms.ToString("F4")</td>
+                        <td>@r.StdDevMs.ToString("F4")</td>
+                        <td>@r.MinMs.ToString("F4")</td>
+                        <td>@r.MaxMs.ToString("F4")</td>
+                        <td>@r.OpsPerBatch</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
 }

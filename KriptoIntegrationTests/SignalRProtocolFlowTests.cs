@@ -21,136 +21,28 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     [Fact]
     public async Task EndToEndHandshake_AndEncryptedMessage_Succeeds()
     {
-        using var httpClient = _factory.CreateClient();
-        await using var connection = CreateHubConnection();
+        await using var hub = await HubSession.StartAsync(CreateHubConnection());
+        var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: "None");
 
-        var packetQueue = new ConcurrentQueue<(string Type, string Json, bool IsTampered)>();
-        var finalizeServerHello = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var deliveryReport = new TaskCompletionSource<DeliveryReport>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Assert.True(client.IsConfirmed);
+        Assert.Contains("ClientFinished dogrulandi", await hub.NextHandshakeUpdateAsync("ClientFinished dogrulandi"));
 
-        connection.On<string, string, bool>("ReceiveHandshakePackage", (type, json, isTampered) =>
-        {
-            packetQueue.Enqueue((type, json, isTampered));
-        });
-
-        connection.On<string>("FinalizeServerHello", json =>
-        {
-            finalizeServerHello.TrySetResult(json);
-        });
-
-        connection.On<DeliveryReport>("ReceiveDeliveryReport", report =>
-        {
-            deliveryReport.TrySetResult(report);
-        });
-
-        await connection.StartAsync();
-
-        var clientSession = new CryptoProtocolSession(new IdentityService(ProtocolIdentity.GetPinnedServerPublicKey()), "Client");
-        Guid sessionId = Guid.NewGuid();
-        byte[] clientNonce = RandomNumberGenerator.GetBytes(16);
-
-        var clientHello = new ClientHelloMessage
-        {
-            SessionId = sessionId,
-            ClientNonce = clientNonce,
-            ClientEphemeralPublicKey = clientSession.MyEphemeralPub!
-        };
-
-        await connection.InvokeAsync("PostClientHello", clientHello);
-        string clientHelloJson = await WaitForPacketJsonAsync(packetQueue, "ClientHello");
-        await connection.InvokeAsync("BobProcessClientHello", clientHelloJson, "None");
-
-        string serverHelloJson = await WaitForPacketJsonAsync(packetQueue, "ServerHello");
-        await connection.InvokeAsync("ForwardToAlice", serverHelloJson, "None");
-
-        string finalizedHelloJson = await finalizeServerHello.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        ServerHelloMessage? serverHello = JsonSerializer.Deserialize<ServerHelloMessage>(finalizedHelloJson);
-
-        Assert.NotNull(serverHello);
-        Assert.Equal(ProtocolIdentity.GetPinnedServerPublicKey(), serverHello!.ServerIdentityPublicKey);
-
-        byte[] transcript = ProtocolHelpers.BuildHandshakeTranscript(
-            clientNonce,
-            serverHello.ServerNonce,
-            clientSession.MyEphemeralPub!,
-            serverHello.ServerEphemeralPublicKey,
-            serverHello.ServerIdentityPublicKey);
-
-        Assert.True(clientSession.Identity.VerifySignature(transcript, serverHello.Signature));
-
-        clientSession.FinalizeHandshake(
-            serverHello.ServerIdentityPublicKey,
-            serverHello.ServerEphemeralPublicKey,
-            clientNonce,
-            serverHello.ServerNonce);
-
-        SecurePackage package = clientSession.SendChannel!.Encrypt("entegrasyon-test-mesaji");
-        await connection.InvokeAsync("RelayMessage", sessionId, JsonSerializer.Serialize(package), "None");
-
-        DeliveryReport report = await deliveryReport.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        DeliveryReport report = await hub.RelayAsync(sessionId, client.SendChannel!.Encrypt("entegrasyon-test-mesaji"), "None");
 
         Assert.True(report.Success);
-        Assert.Equal("entegrasyon-test-mesaji", report.Plaintext);
-        Assert.Contains("dogruladi", report.StatusMessage);
+        Assert.DoesNotContain("entegrasyon-test-mesaji", report.StatusMessage);
+        Assert.NotNull(report.EncryptedEcho);
+        Assert.Equal("entegrasyon-test-mesaji", client.ReceiveChannel!.Decrypt(report.EncryptedEcho!));
     }
 
     [Fact]
     public async Task Server_RejectsOutOfOrderPacket_WithDeliveryReport()
     {
-        using var httpClient = _factory.CreateClient();
-        await using var connection = CreateHubConnection();
+        await using var hub = await HubSession.StartAsync(CreateHubConnection());
+        var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: "None");
+        await hub.NextHandshakeUpdateAsync("ClientFinished dogrulandi");
 
-        var packetQueue = new ConcurrentQueue<(string Type, string Json, bool IsTampered)>();
-        var finalizeServerHello = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var deliveryReport = new TaskCompletionSource<DeliveryReport>(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        connection.On<string, string, bool>("ReceiveHandshakePackage", (type, json, isTampered) =>
-        {
-            packetQueue.Enqueue((type, json, isTampered));
-        });
-
-        connection.On<string>("FinalizeServerHello", json =>
-        {
-            finalizeServerHello.TrySetResult(json);
-        });
-
-        connection.On<DeliveryReport>("ReceiveDeliveryReport", report =>
-        {
-            deliveryReport.TrySetResult(report);
-        });
-
-        await connection.StartAsync();
-
-        var clientSession = new CryptoProtocolSession(new IdentityService(ProtocolIdentity.GetPinnedServerPublicKey()), "Client");
-        Guid sessionId = Guid.NewGuid();
-        byte[] clientNonce = RandomNumberGenerator.GetBytes(16);
-
-        await connection.InvokeAsync("PostClientHello", new ClientHelloMessage
-        {
-            SessionId = sessionId,
-            ClientNonce = clientNonce,
-            ClientEphemeralPublicKey = clientSession.MyEphemeralPub!
-        });
-
-        string clientHelloJson = await WaitForPacketJsonAsync(packetQueue, "ClientHello");
-        await connection.InvokeAsync("BobProcessClientHello", clientHelloJson, "None");
-
-        string serverHelloJson = await WaitForPacketJsonAsync(packetQueue, "ServerHello");
-        await connection.InvokeAsync("ForwardToAlice", serverHelloJson, "None");
-
-        string finalizedHelloJson = await finalizeServerHello.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        ServerHelloMessage serverHello = JsonSerializer.Deserialize<ServerHelloMessage>(finalizedHelloJson)!;
-
-        clientSession.FinalizeHandshake(
-            serverHello.ServerIdentityPublicKey,
-            serverHello.ServerEphemeralPublicKey,
-            clientNonce,
-            serverHello.ServerNonce);
-
-        SecurePackage package = clientSession.SendChannel!.Encrypt("sira-testi");
-        await connection.InvokeAsync("RelayMessage", sessionId, JsonSerializer.Serialize(package), "OutOfOrder");
-
-        DeliveryReport report = await deliveryReport.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        DeliveryReport report = await hub.RelayAsync(sessionId, client.SendChannel!.Encrypt("sira-testi"), "OutOfOrder");
 
         Assert.False(report.Success);
         Assert.Contains("Bob paketi reddetti", report.StatusMessage);
@@ -159,60 +51,37 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     [Fact]
     public async Task Server_RejectsForgedInjection_WithUnknownSessionId()
     {
-        using var httpClient = _factory.CreateClient();
-        await using var connection = CreateHubConnection();
+        await using var hub = await HubSession.StartAsync(CreateHubConnection());
+        var (client, _) = await hub.HandshakeAsync(clientFinishedAttack: "None");
+        await hub.NextHandshakeUpdateAsync("ClientFinished dogrulandi");
 
-        var packetQueue = new ConcurrentQueue<(string Type, string Json, bool IsTampered)>();
-        var finalizeServerHello = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var deliveryReport = new TaskCompletionSource<DeliveryReport>(TaskCreationOptions.RunContinuationsAsynchronously);
+        DeliveryReport report = await hub.RelayAsync(Guid.NewGuid(), client.SendChannel!.Encrypt("sahte-oturum-denemesi"), "None");
 
-        connection.On<string, string, bool>("ReceiveHandshakePackage", (type, json, isTampered) =>
-        {
-            packetQueue.Enqueue((type, json, isTampered));
-        });
+        Assert.False(report.Success);
+        Assert.Contains("aktif bir oturum bulamadi", report.StatusMessage);
+    }
 
-        connection.On<string>("FinalizeServerHello", json =>
-        {
-            finalizeServerHello.TrySetResult(json);
-        });
+    [Fact]
+    public async Task Server_RejectsRecord_BeforeClientFinished()
+    {
+        await using var hub = await HubSession.StartAsync(CreateHubConnection());
+        var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: null);
 
-        connection.On<DeliveryReport>("ReceiveDeliveryReport", report =>
-        {
-            deliveryReport.TrySetResult(report);
-        });
+        DeliveryReport report = await hub.RelayAsync(sessionId, client.SendChannel!.Encrypt("erken-kayit"), "None");
 
-        await connection.StartAsync();
+        Assert.False(report.Success);
+        Assert.Contains("henuz onaylanmadi", report.StatusMessage);
+    }
 
-        var clientSession = new CryptoProtocolSession(new IdentityService(ProtocolIdentity.GetPinnedServerPublicKey()), "Client");
-        Guid sessionId = Guid.NewGuid();
-        byte[] clientNonce = RandomNumberGenerator.GetBytes(16);
+    [Fact]
+    public async Task Server_ClosesSession_OnTamperedClientFinished()
+    {
+        await using var hub = await HubSession.StartAsync(CreateHubConnection());
+        var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: "FinishedTamper");
 
-        await connection.InvokeAsync("PostClientHello", new ClientHelloMessage
-        {
-            SessionId = sessionId,
-            ClientNonce = clientNonce,
-            ClientEphemeralPublicKey = clientSession.MyEphemeralPub!
-        });
+        Assert.Contains("ClientFinished hatali", await hub.NextHandshakeUpdateAsync("ClientFinished hatali"));
 
-        string clientHelloJson = await WaitForPacketJsonAsync(packetQueue, "ClientHello");
-        await connection.InvokeAsync("BobProcessClientHello", clientHelloJson, "None");
-
-        string serverHelloJson = await WaitForPacketJsonAsync(packetQueue, "ServerHello");
-        await connection.InvokeAsync("ForwardToAlice", serverHelloJson, "None");
-
-        string finalizedHelloJson = await finalizeServerHello.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        ServerHelloMessage serverHello = JsonSerializer.Deserialize<ServerHelloMessage>(finalizedHelloJson)!;
-
-        clientSession.FinalizeHandshake(
-            serverHello.ServerIdentityPublicKey,
-            serverHello.ServerEphemeralPublicKey,
-            clientNonce,
-            serverHello.ServerNonce);
-
-        SecurePackage package = clientSession.SendChannel!.Encrypt("sahte-oturum-denemesi");
-        await connection.InvokeAsync("RelayMessage", Guid.NewGuid(), JsonSerializer.Serialize(package), "None");
-
-        DeliveryReport report = await deliveryReport.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        DeliveryReport report = await hub.RelayAsync(sessionId, client.SendChannel!.Encrypt("kapali-oturum"), "None");
 
         Assert.False(report.Success);
         Assert.Contains("aktif bir oturum bulamadi", report.StatusMessage);
@@ -229,25 +98,108 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
             .Build();
     }
 
-    private static async Task<string> WaitForPacketJsonAsync(
-        ConcurrentQueue<(string Type, string Json, bool IsTampered)> packetQueue,
-        string expectedType)
+    /// <summary>Drives the hub the way the client page does, with the attacker panel forwarding every message.</summary>
+    private sealed class HubSession : IAsyncDisposable
     {
-        DateTime timeoutAt = DateTime.UtcNow.AddSeconds(5);
+        private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
 
-        while (DateTime.UtcNow < timeoutAt)
+        private readonly HubConnection _connection;
+        private readonly ConcurrentQueue<(string Type, string Json)> _packets = new();
+        private readonly ConcurrentQueue<string> _finalizedServerHellos = new();
+        private readonly ConcurrentQueue<string> _handshakeUpdates = new();
+        private readonly ConcurrentQueue<DeliveryReport> _reports = new();
+
+        private HubSession(HubConnection connection)
         {
-            while (packetQueue.TryDequeue(out var packet))
-            {
-                if (packet.Type == expectedType)
-                {
-                    return packet.Json;
-                }
-            }
-
-            await Task.Delay(50);
+            _connection = connection;
+            connection.On<string, string, bool>("ReceiveHandshakePackage", (type, json, _) => _packets.Enqueue((type, json)));
+            connection.On<string>("FinalizeServerHello", json => _finalizedServerHellos.Enqueue(json));
+            connection.On<string, string>("UpdateHandshakeUI", (_, message) => _handshakeUpdates.Enqueue(message));
+            connection.On<DeliveryReport>("ReceiveDeliveryReport", report => _reports.Enqueue(report));
         }
 
-        throw new TimeoutException($"Expected packet '{expectedType}' was not received.");
+        public static async Task<HubSession> StartAsync(HubConnection connection)
+        {
+            var session = new HubSession(connection);
+            await connection.StartAsync();
+            return session;
+        }
+
+        /// <summary>Runs ClientHello and ServerHello; sends ClientFinished unless clientFinishedAttack is null.</summary>
+        public async Task<(CryptoProtocolSession Client, Guid SessionId)> HandshakeAsync(string? clientFinishedAttack)
+        {
+            var client = new CryptoProtocolSession(new IdentityService(ProtocolIdentity.GetPinnedServerPublicKey()), "Client");
+            Guid sessionId = Guid.NewGuid();
+            byte[] clientNonce = RandomNumberGenerator.GetBytes(16);
+
+            await _connection.InvokeAsync("PostClientHello", new ClientHelloMessage
+            {
+                SessionId = sessionId,
+                ClientNonce = clientNonce,
+                ClientEphemeralPublicKey = client.MyEphemeralPub!,
+                KemEncapsulationKey = client.MyKemEncapsulationKey!
+            });
+
+            await _connection.InvokeAsync("BobProcessClientHello", await WaitForPacketAsync("ClientHello"), "None");
+            await _connection.InvokeAsync("ForwardToAlice", await WaitForPacketAsync("ServerHello"), "None");
+
+            var serverHello = JsonSerializer.Deserialize<ServerHelloMessage>(await WaitAsync(_finalizedServerHellos))!;
+            Assert.Equal(ServerHelloVerificationResult.Accepted,
+                ServerHelloVerifier.Complete(client, ProtocolIdentity.GetPinnedServerPublicKey(), clientNonce, serverHello));
+
+            if (clientFinishedAttack != null)
+            {
+                var finished = new ClientFinishedMessage { SessionId = sessionId, ClientFinished = client.CreateClientFinished() };
+                await _connection.InvokeAsync("BobProcessClientFinished", JsonSerializer.Serialize(finished), clientFinishedAttack);
+            }
+
+            return (client, sessionId);
+        }
+
+        public async Task<string> NextHandshakeUpdateAsync(string containing)
+        {
+            DateTime timeoutAt = DateTime.UtcNow + Timeout;
+            while (DateTime.UtcNow < timeoutAt)
+            {
+                while (_handshakeUpdates.TryDequeue(out var message))
+                    if (message.Contains(containing))
+                        return message;
+                await Task.Delay(20);
+            }
+            throw new TimeoutException($"No handshake update containing '{containing}'.");
+        }
+
+        public async Task<DeliveryReport> RelayAsync(Guid sessionId, SecurePackage package, string attackMode)
+        {
+            await _connection.InvokeAsync("RelayMessage", sessionId, JsonSerializer.Serialize(package), attackMode);
+            return await WaitAsync(_reports);
+        }
+
+        private async Task<string> WaitForPacketAsync(string expectedType)
+        {
+            DateTime timeoutAt = DateTime.UtcNow + Timeout;
+            while (DateTime.UtcNow < timeoutAt)
+            {
+                while (_packets.TryDequeue(out var packet))
+                    if (packet.Type == expectedType)
+                        return packet.Json;
+                await Task.Delay(20);
+            }
+            throw new TimeoutException($"Expected packet '{expectedType}' was not received.");
+        }
+
+        private static async Task<T> WaitAsync<T>(ConcurrentQueue<T> queue)
+        {
+            DateTime timeoutAt = DateTime.UtcNow + Timeout;
+            while (DateTime.UtcNow < timeoutAt)
+            {
+                if (queue.TryDequeue(out var item))
+                    return item;
+                await Task.Delay(20);
+            }
+            throw new TimeoutException($"No {typeof(T).Name} received.");
+        }
+
+        public ValueTask DisposeAsync() => _connection.DisposeAsync();
     }
 }

@@ -55,6 +55,20 @@
             }
         };
     </script>
+    <script type="importmap">
+        {
+            "imports": {
+                "@noble/curves/": "/lib/noble/curves/",
+                "@noble/hashes/": "/lib/noble/hashes/",
+                "@noble/ciphers/": "/lib/noble/ciphers/"
+            }
+        }
+    </script>
+    <script type="module">
+        // JavaScript baselines (WebCrypto and noble) for Pages/WasmBenchmark.razor.
+        import { run } from '/js/js-bench.js';
+        window.kriptoJsBench = { run: async engine => JSON.stringify(await run(engine)) };
+    </script>
 </body>
 
 </html>
