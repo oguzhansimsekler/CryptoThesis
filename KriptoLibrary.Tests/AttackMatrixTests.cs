@@ -101,6 +101,19 @@ public class AttackMatrixTests
         Assert.Equal(ServerHelloVerificationResult.InvalidSignature, ClientVerify(client, claimedIdentity));
     }
 
+    [Theory]
+    [InlineData("0000000000000000000000000000000000000000000000000000000000000000")] // u = 0
+    [InlineData("0100000000000000000000000000000000000000000000000000000000000000")] // u = 1
+    [InlineData("e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800")] // order 8
+    public void A18_LowOrderClientKey_IsRejectedByServerKeyAgreement(string lowOrderPointHex)
+    {
+        // A low-order point would force an all-zero shared secret (RFC 7748, section 6.1).
+        var server = new HandshakeService();
+
+        Exception ex = Assert.Throws<Exception>(() => server.DeriveSharedSecret(Convert.FromHexString(lowOrderPointHex)));
+        Assert.Contains("Public Key formati gecersiz", ex.Message);
+    }
+
     [Fact]
     public void A17_ServerHelloReplayedFromEarlierSession_IsRejectedByClientSignatureCheck()
     {
@@ -111,6 +124,46 @@ public class AttackMatrixTests
         var newClient = NewClientHello();
 
         Assert.Equal(ServerHelloVerificationResult.InvalidSignature, ClientVerify(newClient, recorded));
+    }
+
+    [Fact]
+    public void A19_TwoSessionMitM_ReadsTrafficWithoutSignatureCheck_ButIsRejectedWithIt()
+    {
+        var client = NewClientHello();
+        byte[] pinned = ProtocolIdentity.GetPinnedServerPublicKey();
+
+        // Session 1: the attacker acts as a client towards the real server.
+        var attackerAsClient = new CryptoProtocolSession(new IdentityService(pinned), "Client");
+        byte[] attackerNonce = RandomNumberGenerator.GetBytes(16);
+        ServerHelloMessage fromServer = ServerRespond(attackerNonce, attackerAsClient.MyEphemeralPub!, out var server);
+        attackerAsClient.FinalizeHandshake(
+            fromServer.ServerIdentityPublicKey, fromServer.ServerEphemeralPublicKey, attackerNonce, fromServer.ServerNonce);
+
+        // Session 2: the attacker acts as the server towards the client, with its own ephemeral key,
+        // the pinned identity key, and the real server's signature from session 1.
+        var attackerAsServer = new HandshakeService();
+        byte[] attackerServerNonce = RandomNumberGenerator.GetBytes(16);
+        var forged = new ServerHelloMessage
+        {
+            ServerNonce = attackerServerNonce,
+            ServerEphemeralPublicKey = attackerAsServer.GetPublicKey(),
+            ServerIdentityPublicKey = pinned,
+            Signature = fromServer.Signature
+        };
+
+        Assert.Equal(ServerHelloVerificationResult.InvalidSignature, ClientVerify(client, forged));
+
+        // Without the signature check (the unauthenticated design), both halves succeed.
+        client.Session.FinalizeHandshake(pinned, forged.ServerEphemeralPublicKey, client.Nonce, attackerServerNonce);
+        byte[] transcriptHash = ProtocolHelpers.CalculateCanonicalTranscriptHash(
+            ProtocolHelpers.GetAnonymousIdentityPlaceholder(), pinned,
+            client.Session.MyEphemeralPub!, forged.ServerEphemeralPublicKey, client.Nonce, attackerServerNonce);
+        var keys = KeySchedule.DeriveSessionKeys(attackerAsServer.DeriveSharedSecret(client.Session.MyEphemeralPub!), transcriptHash);
+        var attackerReads = new SecureChannel(keys.ClientToServerKey, keys.ClientToServerNonce);
+
+        SecurePackage fromClient = client.Session.SendChannel!.Encrypt("gizli");
+        Assert.Equal("gizli", attackerReads.Decrypt(fromClient));
+        Assert.Equal("gizli", server.ReceiveChannel!.Decrypt(attackerAsClient.SendChannel!.Encrypt("gizli")));
     }
 
     [Fact]
