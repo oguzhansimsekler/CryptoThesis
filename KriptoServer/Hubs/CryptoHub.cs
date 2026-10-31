@@ -9,9 +9,9 @@ namespace KriptoServer.Hubs
     {
         private readonly IdentityService _bobIdentity;
 
-        // SessionId → oturum durumu
+        // SessionId -> session state
         private static readonly ConcurrentDictionary<Guid, ServerSessionState> _activeSessions = new();
-        // ConnectionId → SessionId (bağlantı koptuğunda temizlik için)
+        // ConnectionId -> SessionId, so the session can be removed on disconnect
         private static readonly ConcurrentDictionary<string, Guid> _connectionSessions = new();
 
         public CryptoHub(IdentityService bobIdentity)
@@ -76,7 +76,6 @@ namespace KriptoServer.Hubs
                     ServerNonce = serverNonce
                 };
 
-                // Bağlantı koptuğunda bu session'ı temizleyebilmek için mapping sakla
                 _connectionSessions[Context.ConnectionId] = clientHello.SessionId;
 
                 byte[] transcript = ProtocolHelpers.BuildHandshakeTranscript(
@@ -165,7 +164,7 @@ namespace KriptoServer.Hubs
 
             try
             {
-                // ReceiveChannel: sunucu, Client→Server yönündeki mesajları burada çözer
+                // client-to-server direction
                 string plaintext = state.Session.ReceiveChannel!.Decrypt(package);
                 await Clients.Caller.SendAsync("ReceiveDeliveryReport", new DeliveryReport
                 {

@@ -1,4 +1,5 @@
 using CryptoLibrary;
+using KriptoBenchmarks;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -7,12 +8,39 @@ const int warmupIterations = 50;
 const int measurementIterations = 1000;
 const string demoServerSeedHex = "1E99423A4ED27608A15A2616DE1B5B3F4A8E7D3C2B1A09182736455463728190";
 
-string outputPath = Path.GetFullPath(Path.Combine(
-    AppContext.BaseDirectory,
-    "..", "..", "..", "..",
-    "KriptoClient", "wwwroot", "sample-data", "measurements.json"));
+string repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+string outputPath = Path.Combine(repoRoot, "KriptoClient", "wwwroot", "sample-data", "measurements.json");
 
-// Pre-generate fixed data to isolate the measured cryptographic operation.
+// --batched: run the batched suite shared with the browser page and write the result to
+// benchmarks/; measurements.json is left untouched.
+if (args.Contains("--batched"))
+{
+    var options = new BenchmarkOptions();
+    var batched = new List<BenchmarkResult>();
+    foreach (BenchmarkCase benchmark in BenchmarkSuite.CreateCases())
+    {
+        BenchmarkResult r = BenchmarkSuite.Run(benchmark, options);
+        batched.Add(r);
+        Console.WriteLine($"{r.Operation,-34} mean {r.MeanMs,9:F4}  median {r.MedianMs,9:F4}  sd {r.StdDevMs,8:F4}  ops/batch {r.OpsPerBatch}");
+    }
+
+    var report = new BenchmarkReport(
+        Environment: $"Native .NET ({System.Runtime.InteropServices.RuntimeInformation.OSDescription}, " +
+                     $"{System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture})",
+        Runtime: System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+        Methodology: BenchmarkSuite.Methodology,
+        GeneratedAtUtc: DateTime.UtcNow,
+        Options: options,
+        Results: batched);
+
+    string batchedPath = Path.Combine(repoRoot, "benchmarks", $"native-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json");
+    Directory.CreateDirectory(Path.GetDirectoryName(batchedPath)!);
+    File.WriteAllText(batchedPath, JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true }));
+    Console.WriteLine($"JSON output written to: {batchedPath}");
+    return;
+}
+
+// Prepare inputs up front so that only the operation itself is timed.
 var ed25519Identity = IdentityService.GenerateLongTermIdentity();
 var ed25519PublicKey = ed25519Identity.GetPublicKey();
 var verifierIdentity = new IdentityService(ed25519PublicKey);

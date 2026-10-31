@@ -27,6 +27,34 @@
         <a class="dismiss">🗙</a>
     </div>
     <script src="_framework/blazor.webassembly.js"></script>
+    <script>
+        // Helpers for Pages/WasmBenchmark.razor.
+        window.kriptoBench = {
+            environment: function () {
+                // Smallest step performance.now() can show.
+                let resolution = Infinity;
+                for (let i = 0; i < 50; i++) {
+                    const t0 = performance.now();
+                    let t1 = performance.now();
+                    while (t1 === t0) t1 = performance.now();
+                    resolution = Math.min(resolution, t1 - t0);
+                }
+                return {
+                    userAgent: navigator.userAgent,
+                    crossOriginIsolated: !!window.crossOriginIsolated,
+                    timerResolutionMs: resolution
+                };
+            },
+            download: function (fileName, content) {
+                const url = URL.createObjectURL(new Blob([content], { type: "application/json" }));
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = fileName;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        };
+    </script>
 </body>
 
 </html>

@@ -13,15 +13,14 @@ namespace CryptoLibrary
             byte[] ServerToClientKey,
             byte[] ServerToClientNonce);
 
-        // GÜVENLİK KRİTİĞİ: transcriptHash HKDF salt'ı olarak kullanılır (Context Binding).
-        // Her yön için bağımsız anahtar + nonce türetilir — kanal asimetrik olur.
+        // transcriptHash is the HKDF salt; each direction gets its own key and nonce base.
         public static SessionKeyMaterial DeriveSessionKeys(byte[] sharedSecret, byte[] transcriptHash)
         {
             var hkdf = new HkdfBytesGenerator(new Sha256Digest());
             byte[] info = Encoding.UTF8.GetBytes("CryptoThesis-Protocol-v1-SessionKeys");
             hkdf.Init(new HkdfParameters(sharedSecret, transcriptHash, info));
 
-            // 88 byte: [0..43] Client→Server, [44..87] Server→Client
+            // 88 bytes: [0..43] client to server, [44..87] server to client
             byte[] km = new byte[88];
             hkdf.GenerateBytes(km, 0, 88);
 

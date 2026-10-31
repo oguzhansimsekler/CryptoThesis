@@ -1,0 +1,112 @@
+@page "/wasm-benchmark"
+@using KriptoBenchmarks
+@using System.Text.Json
+@inject IJSRuntime JS
+
+<PageTitle>WASM Benchmark</PageTitle>
+
+<h1>In-Browser Benchmark (Blazor WebAssembly)</h1>
+
+<p>
+    Runs the same benchmark suite as <code>dotnet run -c Release --project KriptoMeasurements -- --batched</code>,
+    but inside this browser tab. Close other heavy tabs and keep this tab in the foreground while it runs.
+</p>
+
+@if (_environment is not null)
+{
+    <ul class="small">
+        <li><strong>Browser:</strong> @_environment.UserAgent</li>
+        <li><strong>Runtime:</strong> @System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription</li>
+        <li><strong>Execution mode:</strong> @ExecutionMode</li>
+        <li><strong>Cross-origin isolated:</strong> @_environment.CrossOriginIsolated (affects timer resolution)</li>
+        <li><strong>Measured timer resolution:</strong> @_environment.TimerResolutionMs.ToString("F4") ms</li>
+    </ul>
+}
+
+<button class="btn btn-primary" @onclick="RunAsync" disabled="@_running">
+    @(_running ? $"Running {_progress}/{_total}..." : "Run benchmark")
+</button>
+@if (_report is not null)
+{
+    <button class="btn btn-outline-secondary ms-2" @onclick="DownloadAsync">Download JSON</button>
+}
+
+@if (_results.Count > 0)
+{
+    <table class="table table-sm table-striped mt-3">
+        <thead>
+            <tr><th>Operation</th><th>Mean (ms)</th><th>Median (ms)</th><th>SD (ms)</th><th>Min</th><th>Max</th><th>Ops/batch</th></tr>
+        </thead>
+        <tbody>
+            @foreach (var r in _results)
+            {
+                <tr>
+                    <td>@r.Operation</td>
+                    <td>@r.MeanMs.ToString("F4")</td>
+                    <td>@r.MedianMs.ToString("F4")</td>
+                    <td>@r.StdDevMs.ToString("F4")</td>
+                    <td>@r.MinMs.ToString("F4")</td>
+                    <td>@r.MaxMs.ToString("F4")</td>
+                    <td>@r.OpsPerBatch</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private sealed record BrowserEnvironment(string UserAgent, bool CrossOriginIsolated, double TimerResolutionMs);
+
+#if AOT_BUILD
+    private const string ExecutionMode = "AOT";
+#else
+    private const string ExecutionMode = "Interpreter";
+#endif
+
+    private BrowserEnvironment? _environment;
+    private readonly List<BenchmarkResult> _results = new();
+    private BenchmarkReport? _report;
+    private bool _running;
+    private int _progress;
+    private int _total;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _environment = await JS.InvokeAsync<BrowserEnvironment>("kriptoBench.environment");
+    }
+
+    private async Task RunAsync()
+    {
+        _running = true;
+        _results.Clear();
+        _report = null;
+        var options = new BenchmarkOptions();
+        IReadOnlyList<BenchmarkCase> cases = BenchmarkSuite.CreateCases();
+        _total = cases.Count;
+
+        foreach (BenchmarkCase benchmark in cases)
+        {
+            _progress = _results.Count + 1;
+            StateHasChanged();
+            await Task.Delay(50); // let the page update between measurements
+            _results.Add(BenchmarkSuite.Run(benchmark, options));
+        }
+
+        _report = new BenchmarkReport(
+            Environment: $"Blazor WebAssembly ({ExecutionMode}); {_environment?.UserAgent}; crossOriginIsolated={_environment?.CrossOriginIsolated}; " +
+                         $"timerResolutionMs={_environment?.TimerResolutionMs:F4}",
+            Runtime: System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+            Methodology: BenchmarkSuite.Methodology,
+            GeneratedAtUtc: DateTime.UtcNow,
+            Options: options,
+            Results: _results.ToList());
+        _running = false;
+    }
+
+    private async Task DownloadAsync()
+    {
+        string json = JsonSerializer.Serialize(_report, new JsonSerializerOptions { WriteIndented = true });
+        await JS.InvokeVoidAsync("kriptoBench.download",
+            $"wasm-{ExecutionMode.ToLowerInvariant()}-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json", json);
+    }
+}

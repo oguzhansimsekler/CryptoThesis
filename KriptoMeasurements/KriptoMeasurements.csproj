@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\KriptoLibrary\KriptoLibrary.csproj" />
+    <ProjectReference Include="..\KriptoBenchmarks\KriptoBenchmarks.csproj" />
   </ItemGroup>
 
 </Project>

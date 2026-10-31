@@ -11,7 +11,7 @@ namespace CryptoLibrary
         private readonly byte[] _key;
         private readonly byte[] _nonceBase;
         private ulong _outboundSequence = 0;
-        private ulong _expectedInboundSequence = 1; // İlk mesajın Seq numarası 1 olmalı
+        private ulong _expectedInboundSequence = 1; // sequence numbers start at 1
 
         public SecureChannel(byte[] key, byte[] nonceBase)
         {
@@ -40,7 +40,7 @@ namespace CryptoLibrary
             int len = cipher.ProcessBytes(plaintextBytes, 0, plaintextBytes.Length, output, 0);
             cipher.DoFinal(output, len);
 
-            // BouncyCastle çıktı ayrıştırma (Ciphertext | Tag)
+            // BouncyCastle output: ciphertext followed by the 16-byte tag
             int tagSize = 16;
             int ciphertextSize = output.Length - tagSize;
 
@@ -61,13 +61,11 @@ namespace CryptoLibrary
 
         public string Decrypt(SecurePackage package)
         {
-            // 1. Temel Kontroller
             if (package == null || package.Ciphertext == null || package.Tag == null || package.Nonce == null)
             {
                 throw new Exception("PAKET BOZUK! (Eksik Veri)");
             }
 
-            // 2. AAD Hazırlığı
             byte[] aad = new byte[8];
             BinaryPrimitives.WriteUInt64BigEndian(aad, package.SequenceNumber);
 
@@ -82,31 +80,25 @@ namespace CryptoLibrary
 
             try
             {
-                // 3. Şifre Çözme Denemesi (Kriptografik Kontrol)
                 cipher.Init(false, parameters);
                 byte[] plaintextBytes = new byte[cipher.GetOutputSize(input.Length)];
 
                 int len = cipher.ProcessBytes(input, 0, input.Length, plaintextBytes, 0);
-                len += cipher.DoFinal(plaintextBytes, len); // <-- Tamper burada yakalanır
+                len += cipher.DoFinal(plaintextBytes, len); // throws here if the tag does not match
 
                 plaintext = Encoding.UTF8.GetString(plaintextBytes, 0, len);
             }
             catch (Exception)
             {
-                // Eğer buraya düştüyse, veri değiştirilmiştir (Tamper)
                 throw new Exception("BÜTÜNLÜK HATASI! (Tag Mismatch - Veri Değiştirilmiş)");
             }
 
-            // 4. Sıra Numarası Kontrolü (Protokol Kontrolü)
-            // Şifre başarıyla çözüldü, PEKİ ZAMANI DOĞRU MU?
+            // The sequence check runs only after the tag has been verified.
             if (package.SequenceNumber != _expectedInboundSequence)
             {
-                // Şifre doğru olsa bile, sıra yanlış olduğu için paket reddedilir.
-                // Fail-closed davranis icin plaintext uygulama seviyesine sizdirilmaz.
                 throw new Exception($"REPLAY SALDIRISI! (Seq: {package.SequenceNumber} Beklenen: {_expectedInboundSequence})");
             }
 
-            // Her şey yolundaysa sırayı ilerlet
             _expectedInboundSequence++;
 
             return plaintext;
@@ -117,7 +109,7 @@ namespace CryptoLibrary
             byte[] seqBytes = new byte[8];
             BinaryPrimitives.WriteUInt64BigEndian(seqBytes, seq);
 
-            // İlk 8 byte XOR (TLS-like construction)
+            // XOR the sequence number into the first 8 bytes of the nonce base.
             for (int i = 0; i < 8; i++)
             {
                 nonce[i] ^= seqBytes[i];

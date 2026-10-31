@@ -1,151 +1,151 @@
 {
   "WarmupIterations": 50,
   "MeasurementIterations": 1000,
-  "GeneratedAtUtc": "2026-05-04T14:02:30.8633459Z",
+  "GeneratedAtUtc": "2026-06-01T12:30:51.9214058Z",
   "Results": [
     {
       "Operation": "X25519 Key Generation",
       "Notes": "Fresh ephemeral X25519 key-pair generation",
-      "AverageMs": 0.08887549999999993,
-      "MedianMs": 0.0883,
-      "MinMs": 0.0762,
-      "MaxMs": 0.3547
+      "AverageMs": 0.09673409999999998,
+      "MedianMs": 0.0957,
+      "MinMs": 0.0822,
+      "MaxMs": 0.222
     },
     {
       "Operation": "X25519 ECDH (Shared Secret)",
       "Notes": "Shared-secret derivation against a fixed peer key",
-      "AverageMs": 0.17496009999999992,
-      "MedianMs": 0.18395,
-      "MinMs": 0.0592,
-      "MaxMs": 0.5911
+      "AverageMs": 0.20748070000000005,
+      "MedianMs": 0.2018,
+      "MinMs": 0.1885,
+      "MaxMs": 0.4158
     },
     {
       "Operation": "Ed25519 Key Generation",
       "Notes": "Long-term identity seed and public key generation",
-      "AverageMs": 0.03278660000000004,
-      "MedianMs": 0.0314,
-      "MinMs": 0.0289,
-      "MaxMs": 0.1779
+      "AverageMs": 0.0504678,
+      "MedianMs": 0.0372,
+      "MinMs": 0.0307,
+      "MaxMs": 0.1651
     },
     {
       "Operation": "Ed25519 Sign",
       "Notes": "Signature generation over a fixed 32-byte transcript fragment",
-      "AverageMs": 0.030086999999999812,
-      "MedianMs": 0.0293,
-      "MinMs": 0.0285,
-      "MaxMs": 0.0792
+      "AverageMs": 0.03202340000000021,
+      "MedianMs": 0.0312,
+      "MinMs": 0.0304,
+      "MaxMs": 0.0645
     },
     {
       "Operation": "Ed25519 Verify",
       "Notes": "Signature verification using the pinned public key",
-      "AverageMs": 0.0586881999999999,
-      "MedianMs": 0.0559,
-      "MinMs": 0.0536,
-      "MaxMs": 1.0229
+      "AverageMs": 0.06682900000000003,
+      "MedianMs": 0.0625,
+      "MinMs": 0.0597,
+      "MaxMs": 1.7085
     },
     {
       "Operation": "SHA-256 Transcript Hash",
       "Notes": "Digest over a fixed transcript-sized payload",
-      "AverageMs": 0.00023160000000000197,
-      "MedianMs": 0.0002,
+      "AverageMs": 0.00029479999999999936,
+      "MedianMs": 0.0003,
       "MinMs": 0.0002,
-      "MaxMs": 0.013
+      "MaxMs": 0.0015
     },
     {
       "Operation": "HKDF Key Derivation",
       "Notes": "Transcript-bound session key derivation from fixed inputs",
-      "AverageMs": 0.009412700000000017,
-      "MedianMs": 0.0089,
-      "MinMs": 0.0083,
-      "MaxMs": 0.1772
+      "AverageMs": 0.010147100000000003,
+      "MedianMs": 0.0094,
+      "MinMs": 0.0086,
+      "MaxMs": 0.2796
     },
     {
       "Operation": "AES-256-GCM Encrypt (1 KB)",
       "Notes": "1 KB payload encryption on a persistent sender channel",
-      "AverageMs": 0.020137200000000008,
-      "MedianMs": 0.0189,
-      "MinMs": 0.0179,
-      "MaxMs": 0.6212
+      "AverageMs": 0.02061519999999997,
+      "MedianMs": 0.0199,
+      "MinMs": 0.0188,
+      "MaxMs": 0.6526
     },
     {
       "Operation": "AES-256-GCM Encrypt (4 KB)",
       "Notes": "4 KB payload encryption on a persistent sender channel",
-      "AverageMs": 0.06975040000000009,
-      "MedianMs": 0.0689,
-      "MinMs": 0.0654,
-      "MaxMs": 0.2691
+      "AverageMs": 0.07562650000000032,
+      "MedianMs": 0.0733,
+      "MinMs": 0.0706,
+      "MaxMs": 0.3275
     },
     {
       "Operation": "AES-256-GCM Encrypt (16 KB)",
       "Notes": "16 KB payload encryption on a persistent sender channel",
-      "AverageMs": 0.1627555000000001,
-      "MedianMs": 0.10965,
-      "MinMs": 0.0921,
-      "MaxMs": 0.8127
+      "AverageMs": 0.20595070000000026,
+      "MedianMs": 0.27455,
+      "MinMs": 0.0997,
+      "MaxMs": 0.5622
     },
     {
       "Operation": "AES-256-GCM Encrypt (64 KB)",
       "Notes": "64 KB payload encryption on a persistent sender channel",
-      "AverageMs": 0.40175259999999974,
-      "MedianMs": 0.38645,
-      "MinMs": 0.3584,
-      "MaxMs": 0.877
+      "AverageMs": 0.47565910000000006,
+      "MedianMs": 0.4329,
+      "MinMs": 0.3978,
+      "MaxMs": 1.5057
     },
     {
       "Operation": "AES-256-GCM Encrypt (256 KB)",
       "Notes": "256 KB payload encryption on a persistent sender channel",
-      "AverageMs": 1.7115234999999995,
-      "MedianMs": 1.63415,
-      "MinMs": 1.5163,
-      "MaxMs": 3.1637
+      "AverageMs": 1.8924016999999997,
+      "MedianMs": 1.7863,
+      "MinMs": 1.5795,
+      "MaxMs": 3.6575
     },
     {
       "Operation": "AES-256-GCM Decrypt (1 KB)",
       "Notes": "1 KB payload decryption against a pre-encrypted package",
-      "AverageMs": 0.008985499999999983,
-      "MedianMs": 0.0093,
-      "MinMs": 0.0067,
-      "MaxMs": 0.0314
+      "AverageMs": 0.00885639999999999,
+      "MedianMs": 0.0091,
+      "MinMs": 0.0066,
+      "MaxMs": 0.0214
     },
     {
       "Operation": "AES-256-GCM Decrypt (4 KB)",
       "Notes": "4 KB payload decryption against a pre-encrypted package",
-      "AverageMs": 0.028466699999999956,
-      "MedianMs": 0.0261,
-      "MinMs": 0.0236,
-      "MaxMs": 0.2352
+      "AverageMs": 0.02899939999999995,
+      "MedianMs": 0.0278,
+      "MinMs": 0.0243,
+      "MaxMs": 0.3144
     },
     {
       "Operation": "AES-256-GCM Decrypt (16 KB)",
       "Notes": "16 KB payload decryption against a pre-encrypted package",
-      "AverageMs": 0.11045179999999997,
-      "MedianMs": 0.0985,
-      "MinMs": 0.0907,
-      "MaxMs": 0.3626
+      "AverageMs": 0.11038929999999997,
+      "MedianMs": 0.10245,
+      "MinMs": 0.0942,
+      "MaxMs": 0.2354
     },
     {
       "Operation": "AES-256-GCM Decrypt (64 KB)",
       "Notes": "64 KB payload decryption against a pre-encrypted package",
-      "AverageMs": 0.44326880000000063,
-      "MedianMs": 0.3993,
-      "MinMs": 0.3671,
-      "MaxMs": 1.3833
+      "AverageMs": 0.4495973000000007,
+      "MedianMs": 0.41725,
+      "MinMs": 0.386,
+      "MaxMs": 1.6707
     },
     {
       "Operation": "AES-256-GCM Decrypt (256 KB)",
       "Notes": "256 KB payload decryption against a pre-encrypted package",
-      "AverageMs": 1.6040189,
-      "MedianMs": 1.56635,
-      "MinMs": 1.4605,
-      "MaxMs": 3.5482
+      "AverageMs": 1.7320567000000018,
+      "MedianMs": 1.6679499999999998,
+      "MinMs": 1.5236,
+      "MaxMs": 3.9699
     },
     {
       "Operation": "Complete Secure Handshake",
       "Notes": "ClientHello \u002B ServerHello \u002B transcript signing/verification \u002B HKDF",
-      "AverageMs": 0.3171667000000001,
-      "MedianMs": 0.3083,
-      "MinMs": 0.2959,
-      "MaxMs": 0.9915
+      "AverageMs": 0.3317995000000002,
+      "MedianMs": 0.3195,
+      "MinMs": 0.2999,
+      "MaxMs": 0.7773
     }
   ]
 }

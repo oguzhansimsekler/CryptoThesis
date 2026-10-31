@@ -86,7 +86,6 @@ public class ProtocolSecurityTests
     {
         var (clientSession, serverSession, _, _) = CreateConnectedSessions();
 
-        // Server'ın SendChannel → Client'ın ReceiveChannel ile şifre çözülmeli
         SecurePackage fromServer = serverSession.SendChannel!.Encrypt("sunucudan-istemciye");
         string decrypted = clientSession.ReceiveChannel!.Decrypt(fromServer);
 

@@ -383,7 +383,13 @@
         AliceStatus = "ServerHello dogrulaniyor...";
         CurrentStep = "verify";
 
-        if (!TrustedServerPublicKey.SequenceEqual(hello.ServerIdentityPublicKey))
+        var verification = ServerHelloVerifier.Verify(
+            TrustedServerPublicKey,
+            _lastAliceNonce,
+            AliceSession.MyEphemeralPub!,
+            hello);
+
+        if (verification == ServerHelloVerificationResult.PinnedKeyMismatch)
         {
             AliceStatus = "Server kimligi pinli anahtarla eslesmedi.";
             SecurityEvents.Insert(0, new SecurityEvent { Content = "Pinned key mismatch detected on client.", IsError = true });
@@ -392,16 +398,7 @@
             return;
         }
 
-        byte[] transcript = ProtocolHelpers.BuildHandshakeTranscript(
-            _lastAliceNonce,
-            hello.ServerNonce,
-            AliceSession.MyEphemeralPub!,
-            hello.ServerEphemeralPublicKey,
-            hello.ServerIdentityPublicKey);
-
-        bool isValid = AliceSession.Identity.VerifySignature(transcript, hello.Signature);
-
-        if (!isValid)
+        if (verification == ServerHelloVerificationResult.InvalidSignature)
         {
             AliceStatus = "Imza hatasi. Mudahale saptandi.";
             BobStatus = "Bob tarafina ulasmadan paket reddedildi.";

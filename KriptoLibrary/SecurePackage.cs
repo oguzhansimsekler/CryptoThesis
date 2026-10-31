@@ -8,9 +8,9 @@ namespace CryptoLibrary
 {
     public class SecurePackage
     {
-        public ulong SequenceNumber { get; set; } // Replay Attack koruması için
-        public byte[] Nonce { get; set; } = Array.Empty<byte>();      // Her mesajda değişen IV
-        public byte[] Ciphertext { get; set; } = Array.Empty<byte>(); // Şifreli veri
-        public byte[] Tag { get; set; } = Array.Empty<byte>();        // Bütünlük (Integrity) etiketi
+        public ulong SequenceNumber { get; set; }
+        public byte[] Nonce { get; set; } = Array.Empty<byte>();
+        public byte[] Ciphertext { get; set; } = Array.Empty<byte>();
+        public byte[] Tag { get; set; } = Array.Empty<byte>();
     }
 }

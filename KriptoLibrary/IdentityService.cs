@@ -6,7 +6,7 @@ namespace CryptoLibrary
     using System;
 
     /// <summary>
-    /// Ed25519 tabanli uzun donem kimlik anahtarlarini ve imza dogrulama akislarini yonetir.
+    /// Long-term Ed25519 identity key: signs on the server, verifies against the pinned key on the client.
     /// </summary>
     public class IdentityService
     {

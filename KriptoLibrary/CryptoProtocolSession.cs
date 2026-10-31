@@ -8,9 +8,7 @@ namespace CryptoLibrary
         public IdentityService Identity { get; }
         public HandshakeService Handshake { get; }
 
-        // Giden mesajlar için şifreleme kanalı
         public SecureChannel? SendChannel { get; private set; }
-        // Gelen mesajlar için şifre çözme kanalı — ters yön anahtarı kullanır
         public SecureChannel? ReceiveChannel { get; private set; }
 
         public byte[]? MyEphemeralPub { get; }
@@ -56,7 +54,7 @@ namespace CryptoLibrary
             var keys = KeySchedule.DeriveSessionKeys(sharedSecret, TranscriptHash);
             bool isClient = Role == "Client";
 
-            // Client→Server anahtarını Client gönderir, Server alır; Server→Client tersi.
+            // The client sends with the client-to-server key; the server does the opposite.
             SendChannel = new SecureChannel(
                 isClient ? keys.ClientToServerKey   : keys.ServerToClientKey,
                 isClient ? keys.ClientToServerNonce : keys.ServerToClientNonce);
