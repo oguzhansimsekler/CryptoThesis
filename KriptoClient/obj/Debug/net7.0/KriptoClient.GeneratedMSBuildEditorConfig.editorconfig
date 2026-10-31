@@ -44,6 +44,10 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = UGFnZXNcTWVhc3VyZW1lbnRzLnJhem9y
 build_metadata.AdditionalFiles.CssScope = 
 
+[C:/Users/OguzHan/source/repos/CryptoThesis/KriptoClient/Pages/WasmBenchmark.razor]
+build_metadata.AdditionalFiles.TargetPath = UGFnZXNcV2FzbUJlbmNobWFyay5yYXpvcg==
+build_metadata.AdditionalFiles.CssScope = 
+
 [C:/Users/OguzHan/source/repos/CryptoThesis/KriptoClient/Shared/SurveyPrompt.razor]
 build_metadata.AdditionalFiles.TargetPath = U2hhcmVkXFN1cnZleVByb21wdC5yYXpvcg==
 build_metadata.AdditionalFiles.CssScope = 
