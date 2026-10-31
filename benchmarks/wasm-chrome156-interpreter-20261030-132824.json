@@ -1,0 +1,201 @@
+{
+  "Environment": "Blazor WebAssembly (Interpreter); Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36; crossOriginIsolated=False; timerResolutionMs=0,1000",
+  "Runtime": ".NET 7.0.20",
+  "Methodology": "Batched timing: after a time-based warm-up, each batch runs the operation enough times to last about TargetBatchMs; the per-operation latency of a batch is its elapsed time divided by the number of operations. Statistics are computed over the per-batch values.",
+  "GeneratedAtUtc": "2026-10-30T13:28:21.459Z",
+  "Options": {
+    "WarmupMs": 300,
+    "MinWarmupOps": 5,
+    "TargetBatchMs": 25,
+    "Batches": 30
+  },
+  "Results": [
+    {
+      "Operation": "X25519 Key Generation",
+      "Notes": "Fresh ephemeral X25519 key-pair generation",
+      "OpsPerBatch": 16,
+      "Batches": 30,
+      "MeanMs": 1.5272916666666667,
+      "MedianMs": 1.53125,
+      "MinMs": 1.5,
+      "MaxMs": 1.575,
+      "StdDevMs": 0.018238975275773388
+    },
+    {
+      "Operation": "X25519 ECDH (Shared Secret)",
+      "Notes": "Shared-secret derivation against a fixed peer key",
+      "OpsPerBatch": 10,
+      "Batches": 30,
+      "MeanMs": 2.7356666666666665,
+      "MedianMs": 2.73,
+      "MinMs": 2.65,
+      "MaxMs": 2.88,
+      "StdDevMs": 0.05276383644869244
+    },
+    {
+      "Operation": "Ed25519 Sign",
+      "Notes": "Signature over a fixed 32-byte transcript fragment",
+      "OpsPerBatch": 17,
+      "Batches": 30,
+      "MeanMs": 1.4652941176470584,
+      "MedianMs": 1.4676470588235295,
+      "MinMs": 1.3999999411764705,
+      "MaxMs": 1.5411764705882351,
+      "StdDevMs": 0.037470115682561284
+    },
+    {
+      "Operation": "Ed25519 Verify",
+      "Notes": "Verification using the pinned public key",
+      "OpsPerBatch": 10,
+      "Batches": 30,
+      "MeanMs": 2.416666666666665,
+      "MedianMs": 2.4,
+      "MinMs": 2.3899999000000003,
+      "MaxMs": 2.5300001,
+      "StdDevMs": 0.03397091386036746
+    },
+    {
+      "Operation": "SHA-256 Transcript Hash",
+      "Notes": "BouncyCastle SHA-256 over a transcript-sized payload",
+      "OpsPerBatch": 466,
+      "Batches": 30,
+      "MeanMs": 0.04750357646638052,
+      "MedianMs": 0.04763948497854077,
+      "MinMs": 0.04678111373390558,
+      "MaxMs": 0.04849785193133047,
+      "StdDevMs": 0.000499250626686154
+    },
+    {
+      "Operation": "HKDF Key Derivation",
+      "Notes": "Transcript-bound session key derivation from fixed inputs",
+      "OpsPerBatch": 86,
+      "Batches": 30,
+      "MeanMs": 0.26767441860465124,
+      "MedianMs": 0.26744186046511625,
+      "MinMs": 0.2651162790697674,
+      "MaxMs": 0.272093011627907,
+      "StdDevMs": 0.0019167498507010323
+    },
+    {
+      "Operation": "AES-256-GCM Encrypt (1 KB)",
+      "Notes": "1 KB payload encryption on a persistent sender channel",
+      "OpsPerBatch": 35,
+      "Batches": 30,
+      "MeanMs": 0.6987619047619049,
+      "MedianMs": 0.6914285714285714,
+      "MinMs": 0.6828571142857143,
+      "MaxMs": 0.7342857428571429,
+      "StdDevMs": 0.015768972703304737
+    },
+    {
+      "Operation": "AES-256-GCM Encrypt (4 KB)",
+      "Notes": "4 KB payload encryption on a persistent sender channel",
+      "OpsPerBatch": 9,
+      "Batches": 30,
+      "MeanMs": 2.673703703703704,
+      "MedianMs": 2.594444444444444,
+      "MinMs": 2.5555555555555554,
+      "MaxMs": 3.3666666666666667,
+      "StdDevMs": 0.20231700450928575
+    },
+    {
+      "Operation": "AES-256-GCM Encrypt (16 KB)",
+      "Notes": "16 KB payload encryption on a persistent sender channel",
+      "OpsPerBatch": 3,
+      "Batches": 30,
+      "MeanMs": 10.293333322222225,
+      "MedianMs": 10.266666666666666,
+      "MinMs": 9.966666333333334,
+      "MaxMs": 11.033332999999999,
+      "StdDevMs": 0.25677040268207174
+    },
+    {
+      "Operation": "AES-256-GCM Encrypt (64 KB)",
+      "Notes": "64 KB payload encryption on a persistent sender channel",
+      "OpsPerBatch": 1,
+      "Batches": 30,
+      "MeanMs": 41.89999996666667,
+      "MedianMs": 41.150000500000004,
+      "MinMs": 39.8,
+      "MaxMs": 47.4,
+      "StdDevMs": 1.8975482766109733
+    },
+    {
+      "Operation": "AES-256-GCM Encrypt (256 KB)",
+      "Notes": "256 KB payload encryption on a persistent sender channel",
+      "OpsPerBatch": 1,
+      "Batches": 30,
+      "MeanMs": 165.33666670000002,
+      "MedianMs": 165.2500005,
+      "MinMs": 159.299999,
+      "MaxMs": 175,
+      "StdDevMs": 3.620390903800623
+    },
+    {
+      "Operation": "AES-256-GCM Decrypt (1 KB)",
+      "Notes": "1 KB payload decryption, including tag verification",
+      "OpsPerBatch": 35,
+      "Batches": 30,
+      "MeanMs": 0.6641904761904762,
+      "MedianMs": 0.6542857142857144,
+      "MinMs": 0.6399999714285715,
+      "MaxMs": 0.7485714,
+      "StdDevMs": 0.02818190677678727
+    },
+    {
+      "Operation": "AES-256-GCM Decrypt (4 KB)",
+      "Notes": "4 KB payload decryption, including tag verification",
+      "OpsPerBatch": 10,
+      "Batches": 30,
+      "MeanMs": 2.4583333333333335,
+      "MedianMs": 2.44500005,
+      "MinMs": 2.3799999,
+      "MaxMs": 2.6299999,
+      "StdDevMs": 0.06142465658664379
+    },
+    {
+      "Operation": "AES-256-GCM Decrypt (16 KB)",
+      "Notes": "16 KB payload decryption, including tag verification",
+      "OpsPerBatch": 3,
+      "Batches": 30,
+      "MeanMs": 9.562222222222221,
+      "MedianMs": 9.4,
+      "MinMs": 9.266666666666667,
+      "MaxMs": 11.133333,
+      "StdDevMs": 0.40681293895998344
+    },
+    {
+      "Operation": "AES-256-GCM Decrypt (64 KB)",
+      "Notes": "64 KB payload decryption, including tag verification",
+      "OpsPerBatch": 1,
+      "Batches": 30,
+      "MeanMs": 38.52333336666667,
+      "MedianMs": 37.650000500000004,
+      "MinMs": 36.9,
+      "MaxMs": 43.700001,
+      "StdDevMs": 1.8570803560874332
+    },
+    {
+      "Operation": "AES-256-GCM Decrypt (256 KB)",
+      "Notes": "256 KB payload decryption, including tag verification",
+      "OpsPerBatch": 1,
+      "Batches": 30,
+      "MeanMs": 152.2866666666667,
+      "MedianMs": 150.95,
+      "MinMs": 147.9,
+      "MaxMs": 168.1,
+      "StdDevMs": 4.237332629861893
+    },
+    {
+      "Operation": "Complete Secure Handshake",
+      "Notes": "ClientHello \u002B ServerHello \u002B transcript signing/verification \u002B HKDF on both sides",
+      "OpsPerBatch": 2,
+      "Batches": 30,
+      "MeanMs": 14.280000000000003,
+      "MedianMs": 14.2000005,
+      "MinMs": 14,
+      "MaxMs": 15.4499995,
+      "StdDevMs": 0.2943724095722323
+    }
+  ]
+}

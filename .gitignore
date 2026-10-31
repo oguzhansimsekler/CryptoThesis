@@ -434,8 +434,7 @@ Mobility_Agreement_Dincer_Celik.docx
 tmp/
 output/
 
-# Paper drafts and benchmark results (kept outside the repository)
+# Paper drafts (kept outside the repository)
 docs/ieee-access/
 docs/Oguz_Han_Paper_Revised.md
 docs/paper-revision-notes.md
-benchmarks/
