@@ -232,13 +232,14 @@ public static class BenchmarkSuite
 
     // The receiver accepts each record once and in order, so decryption runs through a ring of
     // records encrypted in advance; a new receiver is needed only when the ring is exhausted.
+    // The ring holds about 256 KB, which fits in the cache as the single encryption input does.
     private static Action CreateDecryptionLoop(int size)
     {
         byte[] key = RandomNumberGenerator.GetBytes(32);
         byte[] nonceBase = RandomNumberGenerator.GetBytes(12);
         byte[] payload = RandomNumberGenerator.GetBytes(size);
         using var sender = new SecureChannel(key, nonceBase);
-        SecurePackage[] ring = Enumerable.Range(0, Math.Max(16, (4 << 20) / size))
+        SecurePackage[] ring = Enumerable.Range(0, Math.Max(2, (256 << 10) / size))
             .Select(_ => sender.Encrypt(payload)).ToArray();
 
         var receiver = new SecureChannel(key, nonceBase);

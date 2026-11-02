@@ -93,7 +93,7 @@ namespace CryptoLibrary
                 byte[] buffer = new byte[cipher.GetOutputSize(input.Length)];
                 int len = cipher.ProcessBytes(input, 0, input.Length, buffer, 0);
                 len += cipher.DoFinal(buffer, len); // throws here if the tag does not match
-                plaintext = buffer[..len];
+                plaintext = len == buffer.Length ? buffer : buffer[..len];
             }
             catch (Exception)
             {
