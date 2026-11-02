@@ -7,7 +7,7 @@ import { hkdf } from '@noble/hashes/hkdf.js';
 import { hmac } from '@noble/hashes/hmac.js';
 import { gcm } from '@noble/ciphers/aes.js';
 
-const OPTIONS = { WarmupMs: 300, MinWarmupOps: 5, TargetBatchMs: 25, Batches: 30 };
+const OPTIONS = { WarmupMs: 1000, MinWarmupOps: 5, TargetBatchMs: 25, Batches: 30 };
 const PAYLOAD_SIZES = [1024, 4096, 16384, 65536, 262144];
 const subtle = globalThis.crypto.subtle;
 // getRandomValues fills at most 65536 bytes per call.
@@ -24,7 +24,15 @@ async function measure(op) {
         await op();
         warmupOps++;
     }
-    const estimate = (performance.now() - warmupStart) / warmupOps;
+
+    // Batch size from a calibration pass after the warm-up, as in BenchmarkSuite.
+    let calibrationOps = 0;
+    const calibrationStart = performance.now();
+    while (calibrationOps < OPTIONS.MinWarmupOps || performance.now() - calibrationStart < OPTIONS.TargetBatchMs) {
+        await op();
+        calibrationOps++;
+    }
+    const estimate = (performance.now() - calibrationStart) / calibrationOps;
     const opsPerBatch = Math.max(1, Math.ceil(OPTIONS.TargetBatchMs / Math.max(estimate, 1e-6)));
 
     const samples = [];
