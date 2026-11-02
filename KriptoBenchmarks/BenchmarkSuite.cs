@@ -8,7 +8,7 @@ namespace KriptoBenchmarks;
 public sealed record BenchmarkCase(string Operation, string Notes, Action Action);
 
 public sealed record BenchmarkOptions(
-    double WarmupMs = 300,
+    double WarmupMs = 1000,
     int MinWarmupOps = 5,
     double TargetBatchMs = 25,
     int Batches = 30);
@@ -127,7 +127,6 @@ public static class BenchmarkSuite
 
     public static BenchmarkResult Run(BenchmarkCase benchmark, BenchmarkOptions options)
     {
-        // The warm-up also gives a rough cost estimate used to size the batches.
         int warmupOps = 0;
         long warmupStart = Stopwatch.GetTimestamp();
         while (warmupOps < options.MinWarmupOps || ElapsedMs(warmupStart) < options.WarmupMs)
@@ -135,7 +134,17 @@ public static class BenchmarkSuite
             benchmark.Action();
             warmupOps++;
         }
-        double estimateMs = ElapsedMs(warmupStart) / warmupOps;
+
+        // The batch size comes from the last stretch of the warm-up only. The early iterations
+        // still run unoptimised code and would make the batches far too short.
+        int calibrationOps = 0;
+        long calibrationStart = Stopwatch.GetTimestamp();
+        while (calibrationOps < options.MinWarmupOps || ElapsedMs(calibrationStart) < options.TargetBatchMs)
+        {
+            benchmark.Action();
+            calibrationOps++;
+        }
+        double estimateMs = ElapsedMs(calibrationStart) / calibrationOps;
         int opsPerBatch = Math.Max(1, (int)Math.Ceiling(options.TargetBatchMs / Math.Max(estimateMs, 1e-6)));
 
         var samples = new double[options.Batches];
