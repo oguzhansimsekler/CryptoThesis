@@ -1,0 +1,22 @@
+{
+  "Environment": "Native .NET (Microsoft Windows 10.0.26300, pinned to logical processor 2, high priority)",
+  "Only": "Ed25519",
+  "Runtime": ".NET 10.0.11",
+  "Samples": 10000000,
+  "Threshold": 4.5,
+  "GeneratedAtUtc": "2026-11-02T10:49:01.4242245Z",
+  "Results": [
+    {
+      "Operation": "Ed25519 sign",
+      "Classes": "fixed vs random 32-byte message",
+      "Samples": 10000000,
+      "MeanClass0Us": 26.027970585235423,
+      "MeanClass1Us": 26.071849097662103,
+      "TUncropped": -0.643236262877715,
+      "TCropped50": 3.687653474568625,
+      "TCropped90": 3.4425826973601814,
+      "TCropped99": 2.441372372127441,
+      "MaxAbsT": 3.687653474568625
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "Environment": "Native .NET (Microsoft Windows 10.0.26300, pinned to logical processor 2, high priority)",
+  "Only": "Record encryption",
+  "Runtime": ".NET 10.0.11",
+  "Samples": 10000000,
+  "Threshold": 4.5,
+  "GeneratedAtUtc": "2026-11-02T11:02:49.2416684Z",
+  "Results": [
+    {
+      "Operation": "Record encryption (1 KB)",
+      "Classes": "fixed vs random plaintext",
+      "Samples": 10000000,
+      "MeanClass0Us": 3.526229790550477,
+      "MeanClass1Us": 3.525829852556639,
+      "TUncropped": 0.15995813199767814,
+      "TCropped50": 0.49520958897963835,
+      "TCropped90": -1.5904940447324283,
+      "TCropped99": -0.46301077327169216,
+      "MaxAbsT": 1.5904940447324283
+    }
+  ]
+}
