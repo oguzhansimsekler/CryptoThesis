@@ -9,6 +9,17 @@ const int measurementIterations = 1000;
 const string demoServerSeedHex = "1E99423A4ED27608A15A2616DE1B5B3F4A8E7D3C2B1A09182736455463728190";
 
 string repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+
+// --core N: pin the process to one logical processor and raise its priority, so that the
+// scheduler cannot move it between performance and efficiency cores during a run.
+int pinnedCore = args.SkipWhile(a => a != "--core").Skip(1).Select(a => int.TryParse(a, out int n) ? n : -1).FirstOrDefault(-1);
+if (pinnedCore >= 0 && (OperatingSystem.IsWindows() || OperatingSystem.IsLinux()))
+{
+    using Process self = Process.GetCurrentProcess();
+    self.ProcessorAffinity = (IntPtr)(1L << pinnedCore);
+    self.PriorityClass = ProcessPriorityClass.High;
+}
+string pinning = pinnedCore >= 0 ? $", pinned to logical processor {pinnedCore}, high priority" : "";
 string outputPath = Path.Combine(repoRoot, "KriptoClient", "wwwroot", "sample-data", "measurements.json");
 
 // --batched: run the batched suite shared with the browser page and write the result to
@@ -26,7 +37,7 @@ if (args.Contains("--batched"))
 
     var report = new BenchmarkReport(
         Environment: $"Native .NET ({System.Runtime.InteropServices.RuntimeInformation.OSDescription}, " +
-                     $"{System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture})",
+                     $"{System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}{pinning})",
         Runtime: System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
         Methodology: BenchmarkSuite.Methodology,
         GeneratedAtUtc: DateTime.UtcNow,
@@ -40,14 +51,16 @@ if (args.Contains("--batched"))
     return;
 }
 
-// --dudect [samples]: timing-leakage test (Welch's t-test on two input classes per operation).
+// --dudect [samples] [--only <operation>]: timing-leakage test (Welch's t-test on two input
+// classes per operation).
 if (args.Contains("--dudect"))
 {
     int samples = args.SkipWhile(a => a != "--dudect").Skip(1).Select(a => int.TryParse(a, out int n) ? n : 0).FirstOrDefault();
     if (samples <= 0) samples = 100_000;
+    string? only = args.SkipWhile(a => a != "--only").Skip(1).FirstOrDefault();
 
     System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.Highest;
-    var dudect = ConstantTimeTest.RunAll(samples);
+    var dudect = ConstantTimeTest.RunAll(samples, only);
     foreach (ConstantTimeResult r in dudect)
         Console.WriteLine($"{r.Operation,-32} {r.Classes,-42} mean {r.MeanClass0Us,8:F2} / {r.MeanClass1Us,8:F2} us  max|t| {r.MaxAbsT,7:F2}{(r.MaxAbsT > ConstantTimeTest.Threshold ? "  LEAK?" : "")}");
 
@@ -55,7 +68,8 @@ if (args.Contains("--dudect"))
     Directory.CreateDirectory(Path.GetDirectoryName(dudectPath)!);
     File.WriteAllText(dudectPath, JsonSerializer.Serialize(new
     {
-        Environment = $"Native .NET ({System.Runtime.InteropServices.RuntimeInformation.OSDescription})",
+        Environment = $"Native .NET ({System.Runtime.InteropServices.RuntimeInformation.OSDescription}{pinning})",
+        Only = only,
         Runtime = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
         Samples = samples,
         Threshold = ConstantTimeTest.Threshold,

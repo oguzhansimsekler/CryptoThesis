@@ -33,11 +33,16 @@ public static class ConstantTimeTest
 
     private sealed record Target(string Operation, string Classes, Func<int, Action> Prepare);
 
-    public static IReadOnlyList<ConstantTimeResult> RunAll(int samples)
+    /// <param name="only">If set, only operations whose name contains this text are tested.</param>
+    public static IReadOnlyList<ConstantTimeResult> RunAll(int samples, string? only = null)
     {
         var results = new List<ConstantTimeResult>();
         foreach (Target target in CreateTargets())
+        {
+            if (only != null && !target.Operation.Contains(only, StringComparison.OrdinalIgnoreCase))
+                continue;
             results.Add(Run(target, samples));
+        }
         return results;
     }
 
