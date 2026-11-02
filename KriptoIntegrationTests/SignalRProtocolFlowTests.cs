@@ -36,7 +36,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     }
 
     [Fact]
-    public async Task Server_RejectsOutOfOrderPacket_WithDeliveryReport()
+    public async Task A24_Server_RejectsOutOfOrderPacket_WithDeliveryReport()
     {
         await using var hub = await HubSession.StartAsync(CreateHubConnection());
         var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: "None");
@@ -49,7 +49,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     }
 
     [Fact]
-    public async Task Server_RejectsForgedInjection_WithUnknownSessionId()
+    public async Task A33_Server_RejectsForgedInjection_WithUnknownSessionId()
     {
         await using var hub = await HubSession.StartAsync(CreateHubConnection());
         var (client, _) = await hub.HandshakeAsync(clientFinishedAttack: "None");
@@ -62,7 +62,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     }
 
     [Fact]
-    public async Task Server_RejectsRecord_BeforeClientFinished()
+    public async Task A20_Server_RejectsRecord_BeforeClientFinished()
     {
         await using var hub = await HubSession.StartAsync(CreateHubConnection());
         var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: null);
@@ -74,7 +74,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     }
 
     [Fact]
-    public async Task Server_ClosesSession_OnTamperedClientFinished()
+    public async Task A18_Server_ClosesSession_OnTamperedClientFinished()
     {
         await using var hub = await HubSession.StartAsync(CreateHubConnection());
         var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: "FinishedTamper");
@@ -88,7 +88,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     }
 
     [Fact]
-    public async Task SessionIdCollision_FromAnotherConnection_DoesNotReplaceVictimSession()
+    public async Task A1_SessionIdCollision_FromAnotherConnection_DoesNotReplaceVictimSession()
     {
         await using var victim = await HubSession.StartAsync(CreateHubConnection());
         await using var attacker = await HubSession.StartAsync(CreateHubConnection());
@@ -114,7 +114,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     }
 
     [Fact]
-    public async Task ForeignClientFinished_DoesNotCloseVictimSession()
+    public async Task A21_ForeignClientFinished_DoesNotCloseVictimSession()
     {
         await using var victim = await HubSession.StartAsync(CreateHubConnection());
         await using var attacker = await HubSession.StartAsync(CreateHubConnection());
@@ -131,7 +131,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     }
 
     [Fact]
-    public async Task RecordFromAnotherConnection_IsTreatedAsUnknownSession()
+    public async Task A34_RecordFromAnotherConnection_IsTreatedAsUnknownSession()
     {
         await using var victim = await HubSession.StartAsync(CreateHubConnection());
         await using var attacker = await HubSession.StartAsync(CreateHubConnection());
@@ -156,7 +156,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     [InlineData("ClientEphemeralPublicKey:31")]
     [InlineData("KemEncapsulationKey:1183")]
     [InlineData("KemEncapsulationKey:null")]
-    public async Task MalformedClientHello_IsRejectedWithoutCreatingSession(string variant)
+    public async Task A7_MalformedClientHello_IsRejectedWithoutCreatingSession(string variant)
     {
         await using var hub = await HubSession.StartAsync(CreateHubConnection());
         Guid sessionId = Guid.NewGuid();
@@ -172,7 +172,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     [InlineData("not json")]
     [InlineData("base64")]
     [InlineData("length")]
-    public async Task MalformedClientFinished_IsRejected_AndLeavesSessionUnconfirmed(string variant)
+    public async Task A19_MalformedClientFinished_IsRejected_AndLeavesSessionUnconfirmed(string variant)
     {
         await using var hub = await HubSession.StartAsync(CreateHubConnection());
         var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: null);
@@ -196,7 +196,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     [InlineData("tag length")]
     [InlineData("empty ciphertext")]
     [InlineData("sequence zero")]
-    public async Task MalformedRecord_IsRejected_AndDoesNotDisturbTheChannel(string variant)
+    public async Task A25_MalformedRecord_IsRejected_AndDoesNotDisturbTheChannel(string variant)
     {
         await using var hub = await HubSession.StartAsync(CreateHubConnection());
         var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: "None");

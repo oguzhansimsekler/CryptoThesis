@@ -15,7 +15,7 @@ public class AttackMatrixTests
     private const string SequenceFailure = "REPLAY SALDIRISI";
 
     [Fact]
-    public void A1_ClientEphemeralKeyTamper_IsAcceptedByServer_ButRejectedByClientSignatureCheck()
+    public void A3_ClientEphemeralKeyTamper_IsAcceptedByServer_ButRejectedByClientSignatureCheck()
     {
         var client = NewClientHello();
         byte[] tamperedKey = (byte[])client.Session.MyEphemeralPub!.Clone();
@@ -40,7 +40,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A3_ServerEphemeralKeySubstitution_IsRejectedByClientSignatureCheck()
+    public void A9_ServerEphemeralKeySubstitution_IsRejectedByClientSignatureCheck()
     {
         var client = NewClientHello();
         ServerHelloMessage hello = ServerRespond(client);
@@ -51,7 +51,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A4_ServerNonceTamper_IsRejectedByClientSignatureCheck()
+    public void A8_ServerNonceTamper_IsRejectedByClientSignatureCheck()
     {
         var client = NewClientHello();
         ServerHelloMessage hello = ServerRespond(client);
@@ -62,7 +62,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A5_SignatureTamper_IsRejectedByClientSignatureCheck()
+    public void A13_SignatureTamper_IsRejectedByClientSignatureCheck()
     {
         var client = NewClientHello();
         ServerHelloMessage hello = ServerRespond(client);
@@ -73,7 +73,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A6_ServerIdentityKeyTamper_IsRejectedByPinnedKeyCheck()
+    public void A11_ServerIdentityKeyTamper_IsRejectedByPinnedKeyCheck()
     {
         var client = NewClientHello();
         ServerHelloMessage hello = ServerRespond(client);
@@ -84,7 +84,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A7_ServerImpersonation_WithAttackerSigningKey_IsRejected()
+    public void A12_ServerImpersonation_WithAttackerSigningKey_IsRejected()
     {
         var client = NewClientHello();
         var attackerIdentity = IdentityService.GenerateLongTermIdentity();
@@ -102,7 +102,7 @@ public class AttackMatrixTests
     [InlineData("0000000000000000000000000000000000000000000000000000000000000000")] // u = 0
     [InlineData("0100000000000000000000000000000000000000000000000000000000000000")] // u = 1
     [InlineData("e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800")] // order 8
-    public void A18_LowOrderClientKey_IsRejectedByServerKeyAgreement(string lowOrderPointHex)
+    public void A4_LowOrderClientKey_IsRejectedByServerKeyAgreement(string lowOrderPointHex)
     {
         // A low-order point would force an all-zero shared secret (RFC 7748, section 6.1).
         var server = new HandshakeService();
@@ -112,7 +112,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A17_ServerHelloReplayedFromEarlierSession_IsRejectedByClientSignatureCheck()
+    public void A16_ServerHelloReplayedFromEarlierSession_IsRejectedByClientSignatureCheck()
     {
         var earlierClient = NewClientHello();
         ServerHelloMessage recorded = ServerRespond(earlierClient);
@@ -124,7 +124,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A19_TwoSessionMitM_ReadsTrafficWithoutSignatureCheck_ButIsRejectedWithIt()
+    public void A17_TwoSessionMitM_ReadsTrafficWithoutSignatureCheck_ButIsRejectedWithIt()
     {
         var client = NewClientHello();
         byte[] pinned = ProtocolIdentity.GetPinnedServerPublicKey();
@@ -171,7 +171,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A20_KemCiphertextTamper_IsRejectedByClientSignatureCheck()
+    public void A10_KemCiphertextTamper_IsRejectedByClientSignatureCheck()
     {
         var client = NewClientHello();
         ServerHelloMessage hello = ServerRespond(client);
@@ -182,7 +182,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A21_ClientKemKeyReplacedByAttackerKey_IsRejectedByClientSignatureCheck()
+    public void A5_ClientKemKeyReplacedByAttackerKey_IsRejectedByClientSignatureCheck()
     {
         var client = NewClientHello();
         var attackerKem = new KemService();
@@ -194,7 +194,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A22_ServerFinishedTamper_IsRejectedByClientFinishedCheck()
+    public void A14_ServerFinishedTamper_IsRejectedByClientFinishedCheck()
     {
         var client = NewClientHello();
         ServerHelloMessage hello = ServerRespond(client);
@@ -207,7 +207,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A23_ClientFinishedTamper_IsRejectedByServerFinishedCheck()
+    public void A18_ClientFinishedTamper_IsRejectedByServerFinishedCheck()
     {
         var client = NewClientHello();
         ServerHelloMessage hello = ServerRespond(client.Nonce, client.Session.MyEphemeralPub!,
@@ -222,7 +222,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A8_TagTamper_IsRejectedByAead()
+    public void A22_TagTamper_IsRejectedByAead()
     {
         var (client, server) = Establish();
         SecurePackage package = client.SendChannel!.EncryptText("m1");
@@ -233,7 +233,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A9_CiphertextBitFlip_IsRejectedByAead()
+    public void A23_CiphertextBitFlip_IsRejectedByAead()
     {
         var (client, server) = Establish();
         SecurePackage package = client.SendChannel!.EncryptText("m1");
@@ -244,7 +244,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A10_SequenceFieldTamper_IsRejectedByAead_BeforeSequenceCheck()
+    public void A24_SequenceFieldTamper_IsRejectedByAead_BeforeSequenceCheck()
     {
         var (client, server) = Establish();
         SecurePackage package = client.SendChannel!.EncryptText("m1");
@@ -259,7 +259,7 @@ public class AttackMatrixTests
     [Theory]
     [InlineData(SequenceCheckOrder.AfterAuthentication, IntegrityFailure)]
     [InlineData(SequenceCheckOrder.BeforeAuthentication, SequenceFailure)]
-    public void A10_RejectingCheck_DependsOnTheOrderOfChecks(SequenceCheckOrder order, string expectedReason)
+    public void A24_RejectingCheck_DependsOnTheOrderOfChecks(SequenceCheckOrder order, string expectedReason)
     {
         byte[] key = RandomNumberGenerator.GetBytes(32);
         byte[] nonceBase = RandomNumberGenerator.GetBytes(12);
@@ -277,7 +277,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A11_GenuineReordering_IsRejectedBySequenceCheck()
+    public void A26_GenuineReordering_IsRejectedBySequenceCheck()
     {
         var (client, server) = Establish();
         SecurePackage first = client.SendChannel!.EncryptText("m1");
@@ -289,7 +289,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A12_Replay_IsRejectedBySequenceCheck_WithoutPlaintextExposure()
+    public void A27_Replay_IsRejectedBySequenceCheck_WithoutPlaintextExposure()
     {
         var (client, server) = Establish();
         SecurePackage package = client.SendChannel!.EncryptText("tek-seferlik");
@@ -300,7 +300,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A13_Suppression_IsDetectedAtNextPacket_AndChannelStaysDesynchronized()
+    public void A28_Suppression_IsDetectedAtNextPacket_AndChannelStaysDesynchronized()
     {
         var (client, server) = Establish();
         _ = client.SendChannel!.EncryptText("m1"); // dropped on the way
@@ -312,7 +312,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A14_Reflection_IsRejectedByDirectionSeparatedKeys()
+    public void A30_Reflection_IsRejectedByDirectionSeparatedKeys()
     {
         var (_, server) = Establish();
         SecurePackage fromServer = server.SendChannel!.EncryptText("sunucu-mesaji");
@@ -321,7 +321,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A15_CrossSessionReplay_IsRejectedByAead()
+    public void A31_CrossSessionReplay_IsRejectedByAead()
     {
         var (clientA, _) = Establish();
         var (_, serverB) = Establish();
@@ -331,7 +331,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A16_ForgedPacket_WithAttackerKey_IsRejectedByAead()
+    public void A32_ForgedPacket_WithAttackerKey_IsRejectedByAead()
     {
         var (_, server) = Establish();
         var attackerChannel = new SecureChannel(RandomNumberGenerator.GetBytes(32), RandomNumberGenerator.GetBytes(12));
@@ -340,10 +340,36 @@ public class AttackMatrixTests
         AssertRejected(server.ReceiveChannel!, forged, IntegrityFailure);
     }
 
+    [Theory]
+    [InlineData(nameof(ServerHelloMessage.ServerNonce), ServerHelloVerificationResult.InvalidSignature)]
+    [InlineData(nameof(ServerHelloMessage.ServerEphemeralPublicKey), ServerHelloVerificationResult.InvalidSignature)]
+    [InlineData(nameof(ServerHelloMessage.KemCiphertext), ServerHelloVerificationResult.InvalidSignature)]
+    [InlineData(nameof(ServerHelloMessage.ServerIdentityPublicKey), ServerHelloVerificationResult.PinnedKeyMismatch)]
+    [InlineData(nameof(ServerHelloMessage.Signature), ServerHelloVerificationResult.InvalidSignature)]
+    [InlineData(nameof(ServerHelloMessage.ServerFinished), ServerHelloVerificationResult.InvalidServerFinished)]
+    public void A15_ServerHelloFieldOfWrongLength_IsRejectedByTheCheckThatCoversIt(string field, ServerHelloVerificationResult expected)
+    {
+        var property = typeof(ServerHelloMessage).GetProperty(field)!;
+
+        foreach (int delta in new[] { -1, 1 })
+        {
+            var client = NewClientHello();
+            ServerHelloMessage hello = ServerRespond(client);
+            byte[] original = (byte[])property.GetValue(hello)!;
+            // One byte shorter, or one random byte longer. The transcript encodes every length,
+            // so a length change is a transcript change.
+            byte[] changed = delta < 0 ? original[..^1] : Concat(original, RandomNumberGenerator.GetBytes(1));
+            property.SetValue(hello, changed);
+
+            Assert.Equal(expected, ClientComplete(client, hello));
+            Assert.False(client.Session.IsConfirmed);
+        }
+    }
+
     private sealed record ClientHello(CryptoProtocolSession Session, byte[] Nonce);
 
     [Fact]
-    public void A24_KemKeyWithUnreducedCoefficient_IsRejectedByServerModulusCheck()
+    public void A6_KemKeyWithUnreducedCoefficient_IsRejectedByServerModulusCheck()
     {
         var client = NewClientHello();
         byte[] badKey = (byte[])client.Session.MyKemEncapsulationKey!.Clone();
@@ -363,7 +389,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A25_TruncationOfFinalRecords_IsNotDetected()
+    public void A29_TruncationOfFinalRecords_IsNotDetected()
     {
         var (client, server) = Establish();
         SecurePackage first = client.SendChannel!.EncryptText("1");
