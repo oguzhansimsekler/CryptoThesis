@@ -222,7 +222,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A22_TagTamper_IsRejectedByAead()
+    public void A23_TagTamper_IsRejectedByAead()
     {
         var (client, server) = Establish();
         SecurePackage package = client.SendChannel!.EncryptText("m1");
@@ -233,7 +233,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A23_CiphertextBitFlip_IsRejectedByAead()
+    public void A24_CiphertextBitFlip_IsRejectedByAead()
     {
         var (client, server) = Establish();
         SecurePackage package = client.SendChannel!.EncryptText("m1");
@@ -244,7 +244,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A24_SequenceFieldTamper_IsRejectedByAead_BeforeSequenceCheck()
+    public void A25_SequenceFieldTamper_IsRejectedByAead_BeforeSequenceCheck()
     {
         var (client, server) = Establish();
         SecurePackage package = client.SendChannel!.EncryptText("m1");
@@ -259,7 +259,7 @@ public class AttackMatrixTests
     [Theory]
     [InlineData(SequenceCheckOrder.AfterAuthentication, IntegrityFailure)]
     [InlineData(SequenceCheckOrder.BeforeAuthentication, SequenceFailure)]
-    public void A24_RejectingCheck_DependsOnTheOrderOfChecks(SequenceCheckOrder order, string expectedReason)
+    public void A25_RejectingCheck_DependsOnTheOrderOfChecks(SequenceCheckOrder order, string expectedReason)
     {
         byte[] key = RandomNumberGenerator.GetBytes(32);
         byte[] nonceBase = RandomNumberGenerator.GetBytes(12);
@@ -277,7 +277,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A26_GenuineReordering_IsRejectedBySequenceCheck()
+    public void A27_GenuineReordering_IsRejectedBySequenceCheck()
     {
         var (client, server) = Establish();
         SecurePackage first = client.SendChannel!.EncryptText("m1");
@@ -289,7 +289,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A27_Replay_IsRejectedBySequenceCheck_WithoutPlaintextExposure()
+    public void A28_Replay_IsRejectedBySequenceCheck_WithoutPlaintextExposure()
     {
         var (client, server) = Establish();
         SecurePackage package = client.SendChannel!.EncryptText("tek-seferlik");
@@ -300,7 +300,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A28_Suppression_IsDetectedAtNextPacket_AndChannelStaysDesynchronized()
+    public void A29_Suppression_IsDetectedAtNextPacket_AndChannelStaysDesynchronized()
     {
         var (client, server) = Establish();
         _ = client.SendChannel!.EncryptText("m1"); // dropped on the way
@@ -312,7 +312,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A30_Reflection_IsRejectedByDirectionSeparatedKeys()
+    public void A31_Reflection_IsRejectedByDirectionSeparatedKeys()
     {
         var (_, server) = Establish();
         SecurePackage fromServer = server.SendChannel!.EncryptText("sunucu-mesaji");
@@ -321,7 +321,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A31_CrossSessionReplay_IsRejectedByAead()
+    public void A32_CrossSessionReplay_IsRejectedByAead()
     {
         var (clientA, _) = Establish();
         var (_, serverB) = Establish();
@@ -331,7 +331,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A32_ForgedPacket_WithAttackerKey_IsRejectedByAead()
+    public void A33_ForgedPacket_WithAttackerKey_IsRejectedByAead()
     {
         var (_, server) = Establish();
         var attackerChannel = new SecureChannel(RandomNumberGenerator.GetBytes(32), RandomNumberGenerator.GetBytes(12));
@@ -389,7 +389,7 @@ public class AttackMatrixTests
     }
 
     [Fact]
-    public void A29_TruncationOfFinalRecords_IsNotDetected()
+    public void A30_TruncationOfFinalRecords_IsNotDetected()
     {
         var (client, server) = Establish();
         SecurePackage first = client.SendChannel!.EncryptText("1");

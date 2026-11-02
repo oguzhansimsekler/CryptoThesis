@@ -171,6 +171,14 @@ namespace KriptoServer.Hubs
                 return;
             }
 
+            // A second ClientFinished, e.g. one replayed from the wire, must not touch a confirmed
+            // session: the Finished key is gone, so it would fail and delete the session.
+            if (state.Session.IsConfirmed)
+            {
+                await Clients.Caller.SendAsync("UpdateHandshakeUI", "error", "Bob: Oturum zaten onaylandi, ClientFinished yok sayildi.");
+                return;
+            }
+
             if (attackMode == "FinishedTamper")
                 finished.ClientFinished[0] ^= 0xFF;
 

@@ -36,7 +36,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     }
 
     [Fact]
-    public async Task A24_Server_RejectsOutOfOrderPacket_WithDeliveryReport()
+    public async Task A25_Server_RejectsOutOfOrderPacket_WithDeliveryReport()
     {
         await using var hub = await HubSession.StartAsync(CreateHubConnection());
         var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: "None");
@@ -49,7 +49,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     }
 
     [Fact]
-    public async Task A33_Server_RejectsForgedInjection_WithUnknownSessionId()
+    public async Task A34_Server_RejectsForgedInjection_WithUnknownSessionId()
     {
         await using var hub = await HubSession.StartAsync(CreateHubConnection());
         var (client, _) = await hub.HandshakeAsync(clientFinishedAttack: "None");
@@ -131,7 +131,23 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     }
 
     [Fact]
-    public async Task A34_RecordFromAnotherConnection_IsTreatedAsUnknownSession()
+    public async Task A22_ReplayedClientFinished_AfterConfirmation_DoesNotCloseSession()
+    {
+        await using var hub = await HubSession.StartAsync(CreateHubConnection());
+        var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: "None");
+        await hub.NextHandshakeUpdateAsync("ClientFinished dogrulandi");
+
+        // An on-path attacker sends the captured ClientFinished again, on the victim's own connection.
+        await hub.InvokeAsync("BobProcessClientFinished", hub.LastClientFinishedJson!, "None");
+
+        // Before the fix the replay failed against the cleared Finished key and the session was deleted.
+        DeliveryReport report = await hub.RelayAsync(sessionId, client.SendChannel!.EncryptText("tekrar-sonrasi"), "None");
+        Assert.True(report.Success, report.StatusMessage);
+        Assert.Contains("zaten onaylandi", await hub.NextHandshakeUpdateAsync("zaten onaylandi"));
+    }
+
+    [Fact]
+    public async Task A35_RecordFromAnotherConnection_IsTreatedAsUnknownSession()
     {
         await using var victim = await HubSession.StartAsync(CreateHubConnection());
         await using var attacker = await HubSession.StartAsync(CreateHubConnection());
@@ -196,7 +212,7 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
     [InlineData("tag length")]
     [InlineData("empty ciphertext")]
     [InlineData("sequence zero")]
-    public async Task A25_MalformedRecord_IsRejected_AndDoesNotDisturbTheChannel(string variant)
+    public async Task A26_MalformedRecord_IsRejected_AndDoesNotDisturbTheChannel(string variant)
     {
         await using var hub = await HubSession.StartAsync(CreateHubConnection());
         var (client, sessionId) = await hub.HandshakeAsync(clientFinishedAttack: "None");
@@ -303,6 +319,9 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
             return session;
         }
 
+        /// <summary>The ClientFinished message as last sent by HandshakeAsync, before any attack mode is applied.</summary>
+        public string? LastClientFinishedJson { get; private set; }
+
         /// <summary>Runs ClientHello and ServerHello; sends ClientFinished unless clientFinishedAttack is null.</summary>
         public async Task<(CryptoProtocolSession Client, Guid SessionId)> HandshakeAsync(string? clientFinishedAttack)
         {
@@ -328,7 +347,8 @@ public class SignalRProtocolFlowTests : IClassFixture<WebApplicationFactory<Prog
             if (clientFinishedAttack != null)
             {
                 var finished = new ClientFinishedMessage { SessionId = sessionId, ClientFinished = client.CreateClientFinished() };
-                await _connection.InvokeAsync("BobProcessClientFinished", JsonSerializer.Serialize(finished), clientFinishedAttack);
+                LastClientFinishedJson = JsonSerializer.Serialize(finished);
+                await _connection.InvokeAsync("BobProcessClientFinished", LastClientFinishedJson, clientFinishedAttack);
             }
 
             return (client, sessionId);

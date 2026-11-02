@@ -106,6 +106,8 @@ namespace CryptoLibrary
         public bool VerifyClientFinished(byte[] clientFinished)
         {
             EnsureRole("Server");
+            if (IsConfirmed)
+                throw new InvalidOperationException("The session is already confirmed.");
             byte[] expected = ProtocolHelpers.ComputeClientFinished(Keys.ClientFinishedKey, TranscriptHash!, _signature!, _serverFinished!);
             if (!ProtocolHelpers.FixedTimeEquals(expected, clientFinished))
                 return false;
