@@ -1,7 +1,8 @@
 // Builds the paper's table rows from the benchmark JSON files in this folder.
 // Usage: node benchmarks/make_tables.js
 // Missing measurements are emitted as \tbd{} so that the gap is visible in the PDF.
-// Measurements of the earlier protocol version (no ML-KEM, no Finished) are kept in v2/.
+// Measurements of the earlier protocol version (no ML-KEM, no Finished) are kept in v2/,
+// those of the same protocol on .NET 7 and BouncyCastle 2.6.2 in net7/.
 const fs = require('fs');
 const path = require('path');
 
@@ -15,7 +16,7 @@ function latest(prefix) {
 }
 
 const sources = {
-  native: latest('native-v3-'),
+  native: latest('native-'),
   chromeInterp: latest('wasm-v3-chrome-interpreter-'),
   firefoxInterp: latest('wasm-v3-firefox-interpreter-'),
   chromeAot: latest('wasm-v3-chrome-aot-'),
@@ -89,22 +90,28 @@ console.log(table(aesRows, blazorColumns, true));
 console.log('\n% ---- tab:js_baselines (means only)');
 console.log(table(jsRows, jsColumns, false));
 
-// dudect: |t| range over all runs.
-const dudectNames = {
-  'AES-256-GCM encrypt (1 KB)': 'Record encryption, 1 KB (encoding and AES-GCM)',
-  'UTF-8 encoding (1 KB)': 'UTF-8 encoding of the message, 1 KB',
-  'AES-256-GCM on bytes (1 KB)': 'AES-256-GCM on bytes, 1 KB',
-  'AES-256-GCM tag check (1 KB)': 'Record decryption, tag check',
-  'Finished comparison': 'Finished value comparison',
-};
-const dudect = files.filter(f => f.startsWith('dudect-native-') && f.endsWith('.json')).sort()
+// dudect: |t| range per target. Runs over all targets and the longer runs restricted
+// to one target (--only) are reported separately.
+const dudectRuns = files.filter(f => f.startsWith('dudect-native-') && f.endsWith('.json')).sort()
   .map(f => JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')));
-if (dudect.length) {
-  console.log(`\n% ---- tab:dudect (${dudect.length} runs of ${dudect[0].Samples} samples)`);
-  for (const r of dudect[dudect.length - 1].Results) {
-    const ts = dudect.map(run => run.Results.find(x => x.Operation === r.Operation).MaxAbsT);
-    const name = dudectNames[r.Operation] ?? r.Operation;
-    console.log(`${name} & ${r.Classes} & ${Math.min(...ts).toFixed(1)}--${Math.max(...ts).toFixed(1)} \\\\`);
+const tRange = ts => `${Math.min(...ts).toFixed(1)}--${Math.max(...ts).toFixed(1)}`;
+
+const fullRuns = dudectRuns.filter(run => !run.Only);
+if (fullRuns.length) {
+  console.log(`\n% ---- tab:dudect (${fullRuns.length} runs of ${fullRuns[0].Samples} samples)`);
+  for (const r of fullRuns[0].Results) {
+    const ts = fullRuns.map(run => run.Results.find(x => x.Operation === r.Operation).MaxAbsT);
+    console.log(`${r.Operation} & ${r.Classes} & ${tRange(ts)} \\\\`);
+  }
+}
+
+const longRuns = dudectRuns.filter(run => run.Only);
+if (longRuns.length) {
+  console.log('\n% ---- tab:dudect_long (runs restricted to one target)');
+  for (const op of [...new Set(longRuns.map(run => run.Results[0].Operation))]) {
+    const runs = longRuns.filter(run => run.Results[0].Operation === op);
+    const ts = runs.map(run => run.Results[0].MaxAbsT.toFixed(1));
+    console.log(`${op} & ${runs.length} $\\times$ $10^{${Math.log10(runs[0].Samples)}}$ & ${ts.join(', ')} \\\\`);
   }
 }
 
