@@ -134,7 +134,7 @@ results.Add(Measure(
 
 foreach (int size in new[] { 1024, 4096, 16384, 65536, 262144 })
 {
-    string payload = CreatePayload(size);
+    byte[] payload = CreatePayload(size);
     string label = FormatBytes(size);
     var senderChannel = CreateChannelPair().Sender;
 
@@ -148,7 +148,7 @@ foreach (int size in new[] { 1024, 4096, 16384, 65536, 262144 })
 
 foreach (int size in new[] { 1024, 4096, 16384, 65536, 262144 })
 {
-    string payload = CreatePayload(size);
+    byte[] payload = CreatePayload(size);
     string label = FormatBytes(size);
     byte[] key = RandomNumberGenerator.GetBytes(32);
     byte[] nonceBase = RandomNumberGenerator.GetBytes(12);
@@ -248,7 +248,7 @@ static (SecureChannel Sender, SecureChannel Receiver) CreateChannelPair()
     return (new SecureChannel(key, nonce), new SecureChannel(key, nonce));
 }
 
-static string CreatePayload(int sizeBytes) => new string('A', sizeBytes);
+static byte[] CreatePayload(int sizeBytes) => RandomNumberGenerator.GetBytes(sizeBytes);
 
 static string FormatBytes(int bytes) => bytes switch
 {

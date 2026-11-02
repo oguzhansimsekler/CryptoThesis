@@ -165,9 +165,9 @@ public class AttackMatrixTests
         Assert.True(client.Session.VerifyServerFinished(forged.Signature, forged.ServerFinished));
 
         var attackerReads = new SecureChannel(keys.ClientToServerKey, keys.ClientToServerNonce);
-        SecurePackage fromClient = client.Session.SendChannel!.Encrypt("gizli");
-        Assert.Equal("gizli", attackerReads.Decrypt(fromClient));
-        Assert.Equal("gizli", server.ReceiveChannel!.Decrypt(attackerAsClient.SendChannel!.Encrypt("gizli")));
+        SecurePackage fromClient = client.Session.SendChannel!.EncryptText("gizli");
+        Assert.Equal("gizli", attackerReads.DecryptText(fromClient));
+        Assert.Equal("gizli", server.ReceiveChannel!.DecryptText(attackerAsClient.SendChannel!.EncryptText("gizli")));
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public class AttackMatrixTests
     public void A8_TagTamper_IsRejectedByAead()
     {
         var (client, server) = Establish();
-        SecurePackage package = client.SendChannel!.Encrypt("m1");
+        SecurePackage package = client.SendChannel!.EncryptText("m1");
 
         package.Tag[0] ^= 0xFF; // same change as the hub's "TagTamper" mode
 
@@ -236,7 +236,7 @@ public class AttackMatrixTests
     public void A9_CiphertextBitFlip_IsRejectedByAead()
     {
         var (client, server) = Establish();
-        SecurePackage package = client.SendChannel!.Encrypt("m1");
+        SecurePackage package = client.SendChannel!.EncryptText("m1");
 
         package.Ciphertext[0] ^= 0x01;
 
@@ -247,7 +247,7 @@ public class AttackMatrixTests
     public void A10_SequenceFieldTamper_IsRejectedByAead_BeforeSequenceCheck()
     {
         var (client, server) = Establish();
-        SecurePackage package = client.SendChannel!.Encrypt("m1");
+        SecurePackage package = client.SendChannel!.EncryptText("m1");
 
         // The "OutOfOrder" mode only rewrites the field. The sequence number is in the AAD,
         // so the tag check rejects the record before the sequence check runs.
@@ -256,25 +256,45 @@ public class AttackMatrixTests
         AssertRejected(server.ReceiveChannel!, package, IntegrityFailure);
     }
 
+    [Theory]
+    [InlineData(SequenceCheckOrder.AfterAuthentication, IntegrityFailure)]
+    [InlineData(SequenceCheckOrder.BeforeAuthentication, SequenceFailure)]
+    public void A10_RejectingCheck_DependsOnTheOrderOfChecks(SequenceCheckOrder order, string expectedReason)
+    {
+        byte[] key = RandomNumberGenerator.GetBytes(32);
+        byte[] nonceBase = RandomNumberGenerator.GetBytes(12);
+        using var sender = new SecureChannel(key, nonceBase);
+        using var receiver = new SecureChannel(key, nonceBase, order);
+
+        SecurePackage package = sender.EncryptText("m1");
+        package.SequenceNumber += 2;
+
+        // Same record, same attack: only the implementation decides which check reports it.
+        AssertRejected(receiver, package, expectedReason);
+
+        package.SequenceNumber -= 2;
+        Assert.Equal("m1", receiver.DecryptText(package));
+    }
+
     [Fact]
     public void A11_GenuineReordering_IsRejectedBySequenceCheck()
     {
         var (client, server) = Establish();
-        SecurePackage first = client.SendChannel!.Encrypt("m1");
-        SecurePackage second = client.SendChannel!.Encrypt("m2");
+        SecurePackage first = client.SendChannel!.EncryptText("m1");
+        SecurePackage second = client.SendChannel!.EncryptText("m2");
 
         AssertRejected(server.ReceiveChannel!, second, SequenceFailure);
-        Assert.Equal("m1", server.ReceiveChannel!.Decrypt(first));
-        Assert.Equal("m2", server.ReceiveChannel!.Decrypt(second));
+        Assert.Equal("m1", server.ReceiveChannel!.DecryptText(first));
+        Assert.Equal("m2", server.ReceiveChannel!.DecryptText(second));
     }
 
     [Fact]
     public void A12_Replay_IsRejectedBySequenceCheck_WithoutPlaintextExposure()
     {
         var (client, server) = Establish();
-        SecurePackage package = client.SendChannel!.Encrypt("tek-seferlik");
+        SecurePackage package = client.SendChannel!.EncryptText("tek-seferlik");
 
-        Assert.Equal("tek-seferlik", server.ReceiveChannel!.Decrypt(package));
+        Assert.Equal("tek-seferlik", server.ReceiveChannel!.DecryptText(package));
         Exception ex = AssertRejected(server.ReceiveChannel!, package, SequenceFailure);
         Assert.DoesNotContain("tek-seferlik", ex.Message);
     }
@@ -283,9 +303,9 @@ public class AttackMatrixTests
     public void A13_Suppression_IsDetectedAtNextPacket_AndChannelStaysDesynchronized()
     {
         var (client, server) = Establish();
-        _ = client.SendChannel!.Encrypt("m1"); // dropped on the way
-        SecurePackage second = client.SendChannel!.Encrypt("m2");
-        SecurePackage third = client.SendChannel!.Encrypt("m3");
+        _ = client.SendChannel!.EncryptText("m1"); // dropped on the way
+        SecurePackage second = client.SendChannel!.EncryptText("m2");
+        SecurePackage third = client.SendChannel!.EncryptText("m3");
 
         AssertRejected(server.ReceiveChannel!, second, SequenceFailure);
         AssertRejected(server.ReceiveChannel!, third, SequenceFailure);
@@ -295,7 +315,7 @@ public class AttackMatrixTests
     public void A14_Reflection_IsRejectedByDirectionSeparatedKeys()
     {
         var (_, server) = Establish();
-        SecurePackage fromServer = server.SendChannel!.Encrypt("sunucu-mesaji");
+        SecurePackage fromServer = server.SendChannel!.EncryptText("sunucu-mesaji");
 
         AssertRejected(server.ReceiveChannel!, fromServer, IntegrityFailure);
     }
@@ -305,7 +325,7 @@ public class AttackMatrixTests
     {
         var (clientA, _) = Establish();
         var (_, serverB) = Establish();
-        SecurePackage fromSessionA = clientA.SendChannel!.Encrypt("m1");
+        SecurePackage fromSessionA = clientA.SendChannel!.EncryptText("m1");
 
         AssertRejected(serverB.ReceiveChannel!, fromSessionA, IntegrityFailure);
     }
@@ -315,12 +335,46 @@ public class AttackMatrixTests
     {
         var (_, server) = Establish();
         var attackerChannel = new SecureChannel(RandomNumberGenerator.GetBytes(32), RandomNumberGenerator.GetBytes(12));
-        SecurePackage forged = attackerChannel.Encrypt("sahte");
+        SecurePackage forged = attackerChannel.EncryptText("sahte");
 
         AssertRejected(server.ReceiveChannel!, forged, IntegrityFailure);
     }
 
     private sealed record ClientHello(CryptoProtocolSession Session, byte[] Nonce);
+
+    [Fact]
+    public void A24_KemKeyWithUnreducedCoefficient_IsRejectedByServerModulusCheck()
+    {
+        var client = NewClientHello();
+        byte[] badKey = (byte[])client.Session.MyKemEncapsulationKey!.Clone();
+        // The first 12-bit coefficient becomes 0xFFF, which is not below q = 3329 (FIPS 203, 7.2).
+        badKey[0] = 0xFF;
+        badKey[1] |= 0x0F;
+
+        Exception ex = Assert.Throws<Exception>(() =>
+            ServerRespond(client.Nonce, client.Session.MyEphemeralPub!, badKey, out _));
+        Assert.Contains("KEM anahtari gecersiz", ex.Message);
+
+        // Control: the largest reduced value, q - 1 = 3328 = 0xD00, is accepted.
+        byte[] boundaryKey = (byte[])client.Session.MyKemEncapsulationKey!.Clone();
+        boundaryKey[0] = 0x00;
+        boundaryKey[1] = (byte)((boundaryKey[1] & 0xF0) | 0x0D);
+        ServerRespond(client.Nonce, client.Session.MyEphemeralPub!, boundaryKey, out _);
+    }
+
+    [Fact]
+    public void A25_TruncationOfFinalRecords_IsNotDetected()
+    {
+        var (client, server) = Establish();
+        SecurePackage first = client.SendChannel!.EncryptText("1");
+        SecurePackage second = client.SendChannel!.EncryptText("2");
+        _ = client.SendChannel!.EncryptText("3"); // dropped by the attacker, and nothing follows it
+
+        Assert.Equal("1", server.ReceiveChannel!.DecryptText(first));
+        Assert.Equal("2", server.ReceiveChannel!.DecryptText(second));
+        // The receiver cannot tell a dropped last record from a sender that stopped:
+        // there is no closing message, so the loss surfaces only if another record arrives.
+    }
 
     private static IdentityService ServerIdentity() =>
         IdentityService.CreateFromPrivateSeed(Convert.FromHexString(ProtocolIdentity.DemoServerSeedHex));
@@ -387,7 +441,7 @@ public class AttackMatrixTests
 
     private static Exception AssertRejected(SecureChannel receiver, SecurePackage package, string expectedReason)
     {
-        Exception ex = Assert.Throws<Exception>(() => receiver.Decrypt(package));
+        Exception ex = Assert.Throws<Exception>(() => receiver.DecryptText(package));
         Assert.Contains(expectedReason, ex.Message);
         return ex;
     }

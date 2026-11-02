@@ -459,7 +459,7 @@
             try
             {
                 echo = report.EncryptedEcho != null && AliceSession?.ReceiveChannel != null
-                    ? $"Bob'un sifreli yaniti cozuldu: {AliceSession.ReceiveChannel.Decrypt(report.EncryptedEcho)}"
+                    ? $"Bob'un sifreli yaniti cozuldu: {AliceSession.ReceiveChannel.DecryptText(report.EncryptedEcho)}"
                     : "Bob'un yaniti eksik.";
             }
             catch (Exception ex)
@@ -488,6 +488,7 @@
 
         _currentSessionId = Guid.NewGuid();
         _lastAliceNonce = RandomNumberGenerator.GetBytes(16);
+        AliceSession?.Dispose();
         AliceSession = new CryptoProtocolSession(new IdentityService(TrustedServerPublicKey!), "Client");
 
         var clientHello = new ClientHelloMessage
@@ -505,6 +506,7 @@
     {
         IsHandshakeActive = false;
         IsConnected = false;
+        AliceSession?.Dispose();
         AliceSession = null;
         _currentSessionId = Guid.Empty;
         _lastAliceNonce = Array.Empty<byte>();
@@ -526,7 +528,7 @@
             return;
         }
 
-        SecurePackage package = AliceSession.SendChannel.Encrypt(PlainTextMsg);
+        SecurePackage package = AliceSession.SendChannel.EncryptText(PlainTextMsg);
         string json = JsonSerializer.Serialize(package);
         LogPacket("Data", json, false);
 

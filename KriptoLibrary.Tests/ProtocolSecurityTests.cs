@@ -15,8 +15,8 @@ public class ProtocolSecurityTests
         Assert.NotNull(serverSession.ReceiveChannel);
         Assert.Equal(clientSession.TranscriptHash, serverSession.TranscriptHash);
 
-        SecurePackage package = clientSession.SendChannel!.Encrypt("tez-protokol-mesaji");
-        string plaintext = serverSession.ReceiveChannel!.Decrypt(package);
+        SecurePackage package = clientSession.SendChannel!.EncryptText("tez-protokol-mesaji");
+        string plaintext = serverSession.ReceiveChannel!.DecryptText(package);
 
         Assert.Equal("tez-protokol-mesaji", plaintext);
     }
@@ -25,11 +25,11 @@ public class ProtocolSecurityTests
     public void TamperedTag_IsRejectedByServerChannel()
     {
         var (clientSession, serverSession, _, _) = CreateConnectedSessions();
-        SecurePackage package = clientSession.SendChannel!.Encrypt("butunluk-korunmali");
+        SecurePackage package = clientSession.SendChannel!.EncryptText("butunluk-korunmali");
 
         package.Tag[0] ^= 0xFF;
 
-        Exception ex = Assert.Throws<Exception>(() => serverSession.ReceiveChannel!.Decrypt(package));
+        Exception ex = Assert.Throws<Exception>(() => serverSession.ReceiveChannel!.DecryptText(package));
         Assert.Contains("BÜTÜNLÜK HATASI", ex.Message);
     }
 
@@ -38,10 +38,10 @@ public class ProtocolSecurityTests
     {
         var (clientSession, serverSession, _, _) = CreateConnectedSessions();
         const string message = "tek-seferlik";
-        SecurePackage package = clientSession.SendChannel!.Encrypt(message);
+        SecurePackage package = clientSession.SendChannel!.EncryptText(message);
 
-        string firstRead = serverSession.ReceiveChannel!.Decrypt(package);
-        Exception ex = Assert.Throws<Exception>(() => serverSession.ReceiveChannel!.Decrypt(package));
+        string firstRead = serverSession.ReceiveChannel!.DecryptText(package);
+        Exception ex = Assert.Throws<Exception>(() => serverSession.ReceiveChannel!.DecryptText(package));
 
         Assert.Equal(message, firstRead);
         Assert.Contains("REPLAY SALDIRISI", ex.Message);
@@ -90,10 +90,34 @@ public class ProtocolSecurityTests
     {
         var (clientSession, serverSession, _, _) = CreateConnectedSessions();
 
-        SecurePackage fromServer = serverSession.SendChannel!.Encrypt("sunucudan-istemciye");
-        string decrypted = clientSession.ReceiveChannel!.Decrypt(fromServer);
+        SecurePackage fromServer = serverSession.SendChannel!.EncryptText("sunucudan-istemciye");
+        string decrypted = clientSession.ReceiveChannel!.DecryptText(fromServer);
 
         Assert.Equal("sunucudan-istemciye", decrypted);
+    }
+
+    [Fact]
+    public void EphemeralKeys_AreDiscardedOnceSessionKeysAreDerived()
+    {
+        var (clientSession, serverSession, _, _) = CreateConnectedSessions();
+
+        // Forward secrecy needs the ephemeral secrets to be gone, not just unused.
+        Assert.Throws<ObjectDisposedException>(() => clientSession.Handshake.DeriveSharedSecret(serverSession.MyEphemeralPub!));
+        Assert.Throws<ObjectDisposedException>(() => serverSession.Handshake.DeriveSharedSecret(clientSession.MyEphemeralPub!));
+        Assert.Throws<ObjectDisposedException>(() => clientSession.Kem!.Decapsulate(new byte[KemService.CiphertextSize]));
+    }
+
+    [Fact]
+    public void DisposedSession_CannotEncryptOrDecrypt()
+    {
+        var (clientSession, serverSession, _, _) = CreateConnectedSessions();
+        SecurePackage package = clientSession.SendChannel!.EncryptText("son-mesaj");
+
+        serverSession.Dispose();
+        clientSession.Dispose();
+
+        Assert.Throws<ObjectDisposedException>(() => serverSession.ReceiveChannel!.Decrypt(package));
+        Assert.Throws<ObjectDisposedException>(() => clientSession.SendChannel!.EncryptText("sonra"));
     }
 
     private static IdentityService CreateTestServerIdentity() =>

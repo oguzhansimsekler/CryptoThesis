@@ -101,7 +101,7 @@ public static class BenchmarkSuite
 
         foreach (int size in PayloadSizes)
         {
-            string payload = new('A', size);
+            byte[] payload = RandomNumberGenerator.GetBytes(size);
             var sender = new SecureChannel(RandomNumberGenerator.GetBytes(32), RandomNumberGenerator.GetBytes(12));
             cases.Add(new($"AES-256-GCM Encrypt ({FormatBytes(size)})",
                 $"{FormatBytes(size)} payload encryption on a persistent sender channel",
@@ -110,12 +110,9 @@ public static class BenchmarkSuite
 
         foreach (int size in PayloadSizes)
         {
-            byte[] key = RandomNumberGenerator.GetBytes(32);
-            byte[] nonceBase = RandomNumberGenerator.GetBytes(12);
-            SecurePackage package = new SecureChannel(key, nonceBase).Encrypt(new string('A', size));
             cases.Add(new($"AES-256-GCM Decrypt ({FormatBytes(size)})",
-                $"{FormatBytes(size)} payload decryption, including tag verification",
-                () => new SecureChannel(key, nonceBase).Decrypt(package)));
+                $"{FormatBytes(size)} payload decryption, including tag verification, on a persistent receiver channel",
+                CreateDecryptionLoop(size)));
         }
 
         cases.Add(new("Complete Handshake (classical)",
@@ -232,6 +229,31 @@ public static class BenchmarkSuite
 
     private static double ElapsedMs(long startTimestamp) =>
         (Stopwatch.GetTimestamp() - startTimestamp) * 1000d / Stopwatch.Frequency;
+
+    // The receiver accepts each record once and in order, so decryption runs through a ring of
+    // records encrypted in advance; a new receiver is needed only when the ring is exhausted.
+    private static Action CreateDecryptionLoop(int size)
+    {
+        byte[] key = RandomNumberGenerator.GetBytes(32);
+        byte[] nonceBase = RandomNumberGenerator.GetBytes(12);
+        byte[] payload = RandomNumberGenerator.GetBytes(size);
+        using var sender = new SecureChannel(key, nonceBase);
+        SecurePackage[] ring = Enumerable.Range(0, Math.Max(16, (4 << 20) / size))
+            .Select(_ => sender.Encrypt(payload)).ToArray();
+
+        var receiver = new SecureChannel(key, nonceBase);
+        int next = 0;
+        return () =>
+        {
+            if (next == ring.Length)
+            {
+                receiver.Dispose();
+                receiver = new SecureChannel(key, nonceBase);
+                next = 0;
+            }
+            receiver.Decrypt(ring[next++]);
+        };
+    }
 
     private static string FormatBytes(int bytes) => bytes < 1024 ? $"{bytes} B" : $"{bytes / 1024} KB";
 }

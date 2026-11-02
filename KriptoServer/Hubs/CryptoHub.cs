@@ -22,13 +22,16 @@ namespace KriptoServer.Hubs
         public override Task OnDisconnectedAsync(Exception? exception)
         {
             if (_connectionSessions.TryRemove(Context.ConnectionId, out var sessionId))
-                _activeSessions.TryRemove(sessionId, out _);
+                RemoveSession(sessionId);
 
             return base.OnDisconnectedAsync(exception);
         }
 
         public class ServerSessionState
         {
+            // Only the connection that sent the ClientHello may use the session.
+            // The session id travels in clear, so it cannot serve as a capability.
+            public required string OwnerConnectionId { get; init; }
             public required CryptoProtocolSession Session { get; init; }
             public required byte[] ClientNonce { get; init; }
             public required byte[] ServerNonce { get; init; }
@@ -50,6 +53,13 @@ namespace KriptoServer.Hubs
             if (clientHello == null || !IsValidClientHello(clientHello))
             {
                 await Clients.Caller.SendAsync("UpdateHandshakeUI", "error", "Bob: Gecersiz ClientHello formati.");
+                return;
+            }
+
+            // Checked before any expensive work; TryAdd below closes the race.
+            if (_activeSessions.ContainsKey(clientHello.SessionId))
+            {
+                await Clients.Caller.SendAsync("UpdateHandshakeUI", "error", "Bob: Bu sessionId zaten kullaniliyor.");
                 return;
             }
 
@@ -91,12 +101,24 @@ namespace KriptoServer.Hubs
                     ServerFinished = session.CreateServerFinished(signature)
                 };
 
-                _activeSessions[clientHello.SessionId] = new ServerSessionState
+                var state = new ServerSessionState
                 {
+                    OwnerConnectionId = Context.ConnectionId,
                     Session = session,
                     ClientNonce = clientHello.ClientNonce,
                     ServerNonce = serverNonce
                 };
+
+                if (!_activeSessions.TryAdd(clientHello.SessionId, state))
+                {
+                    session.Dispose();
+                    await Clients.Caller.SendAsync("UpdateHandshakeUI", "error", "Bob: Bu sessionId zaten kullaniliyor.");
+                    return;
+                }
+
+                // One session per connection: a new handshake replaces the caller's previous session.
+                if (_connectionSessions.TryGetValue(Context.ConnectionId, out var previous) && previous != clientHello.SessionId)
+                    RemoveSession(previous);
                 _connectionSessions[Context.ConnectionId] = clientHello.SessionId;
 
                 await Clients.All.SendAsync("ReceiveHandshakePackage", "ServerHello", JsonSerializer.Serialize(serverHello), false);
@@ -143,7 +165,7 @@ namespace KriptoServer.Hubs
             catch { finished = null; }
 
             if (finished == null || finished.ClientFinished?.Length != 32 ||
-                !_activeSessions.TryGetValue(finished.SessionId, out var state))
+                !TryGetOwnSession(finished.SessionId, out var state))
             {
                 await Clients.Caller.SendAsync("UpdateHandshakeUI", "error", "Bob: Gecersiz ClientFinished.");
                 return;
@@ -158,14 +180,14 @@ namespace KriptoServer.Hubs
             }
             else
             {
-                _activeSessions.TryRemove(finished.SessionId, out _);
+                RemoveSession(finished.SessionId);
                 await Clients.Caller.SendAsync("UpdateHandshakeUI", "error", "Bob: ClientFinished hatali, oturum kapatildi.");
             }
         }
 
         public async Task RelayMessage(Guid sessionId, string messageJson, string attackMode)
         {
-            if (!_activeSessions.TryGetValue(sessionId, out var state))
+            if (!TryGetOwnSession(sessionId, out var state))
             {
                 await Clients.Caller.SendAsync("ReceiveDeliveryReport", new DeliveryReport
                 {
@@ -207,7 +229,7 @@ namespace KriptoServer.Hubs
             try
             {
                 // client-to-server direction
-                string plaintext = state.Session.ReceiveChannel!.Decrypt(package);
+                byte[] plaintext = state.Session.ReceiveChannel!.Decrypt(package);
 
                 // The echo goes back encrypted on the server-to-client channel, never in clear.
                 await Clients.Caller.SendAsync("ReceiveDeliveryReport", new DeliveryReport
@@ -227,13 +249,31 @@ namespace KriptoServer.Hubs
             }
         }
 
+        private static void RemoveSession(Guid sessionId)
+        {
+            if (_activeSessions.TryRemove(sessionId, out var removed))
+                removed.Session.Dispose();
+        }
+
+        // A session owned by another connection is reported as unknown, so its existence is not revealed.
+        private bool TryGetOwnSession(Guid sessionId, out ServerSessionState state)
+        {
+            if (_activeSessions.TryGetValue(sessionId, out var found) && found.OwnerConnectionId == Context.ConnectionId)
+            {
+                state = found;
+                return true;
+            }
+
+            state = null!;
+            return false;
+        }
+
         private static bool IsValidClientHello(ClientHelloMessage msg) =>
             msg.ClientNonce?.Length == 16 &&
             msg.ClientEphemeralPublicKey?.Length == 32 &&
             msg.KemEncapsulationKey?.Length == KemService.EncapsulationKeySize;
 
         private static bool IsValidPackage(SecurePackage pkg) =>
-            pkg.Nonce?.Length == 12 &&
             pkg.Ciphertext?.Length > 0 &&
             pkg.Tag?.Length == 16 &&
             pkg.SequenceNumber > 0;

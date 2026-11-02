@@ -9,14 +9,14 @@ namespace CryptoLibrary
     /// ML-KEM-768 (FIPS 203) for the post-quantum half of the hybrid key exchange.
     /// The client holds a fresh key pair per handshake; the server only encapsulates.
     /// </summary>
-    public sealed class KemService
+    public sealed class KemService : IDisposable
     {
         public const int EncapsulationKeySize = 1184;
         public const int CiphertextSize = 1088;
         public const int SecretSize = 32;
 
         private static readonly MLKemParameters Parameters = MLKemParameters.ml_kem_768;
-        private readonly MLKemPrivateKeyParameters _decapsulationKey;
+        private MLKemPrivateKeyParameters? _decapsulationKey;
 
         public byte[] EncapsulationKey { get; }
 
@@ -53,6 +53,8 @@ namespace CryptoLibrary
 
         public byte[] Decapsulate(byte[] ciphertext)
         {
+            if (_decapsulationKey == null)
+                throw new ObjectDisposedException(nameof(KemService));
             if (ciphertext == null || ciphertext.Length != CiphertextSize)
                 throw new Exception("HANDSHAKE HATASI: KEM sifreli metni gecersiz.");
 
@@ -63,5 +65,9 @@ namespace CryptoLibrary
             decapsulator.Decapsulate(ciphertext, 0, ciphertext.Length, secret, 0, secret.Length);
             return secret;
         }
+
+        // BouncyCastle keeps the decapsulation key in internal arrays that cannot be overwritten
+        // from outside; dropping the reference is the most this class can do.
+        public void Dispose() => _decapsulationKey = null;
     }
 }

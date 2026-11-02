@@ -64,42 +64,29 @@ public static class ConstantTimeTest
 
         byte[] key = RandomNumberGenerator.GetBytes(32);
         byte[] nonceBase = RandomNumberGenerator.GetBytes(12);
-        string fixedText = new string('A', 1024);
-        var fixedTexts = Pool(() => new string('A', 1024));
-        var texts = Pool(() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(768)));
-        yield return new("AES-256-GCM encrypt (1 KB)", "fixed vs random plaintext",
+        byte[] fixedPlaintext = new byte[1024];
+        var fixedPlaintexts = Pool(() => (byte[])fixedPlaintext.Clone());
+        var randomPlaintexts = Pool(() => RandomNumberGenerator.GetBytes(1024));
+        var sender = new SecureChannel(key, nonceBase);
+        yield return new("Record encryption (1 KB)", "fixed vs random plaintext",
             cls =>
             {
-                string text = cls == 0 ? Pick(fixedTexts) : Pick(texts);
-                return () => new SecureChannel(key, nonceBase).Encrypt(text);
+                byte[] data = cls == 0 ? Pick(fixedPlaintexts) : Pick(randomPlaintexts);
+                return () => sender.Encrypt(data);
             });
 
-        // The two halves of the operation above, to locate a difference: the UTF-8 encoding of the
-        // message, and AES-GCM on bytes as SecureChannel calls it.
-        yield return new("UTF-8 encoding (1 KB)", "fixed vs random plaintext",
+        // Not part of the record layer: an application that sends text encodes it first,
+        // and the cost of UTF-8 encoding depends on the characters.
+        var fixedTexts = Pool(() => new string('A', 1024));
+        var texts = Pool(() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(768)));
+        yield return new("UTF-8 encoding (1 KB), application side", "fixed vs random text",
             cls =>
             {
                 string text = cls == 0 ? Pick(fixedTexts) : Pick(texts);
                 return () => System.Text.Encoding.UTF8.GetBytes(text);
             });
 
-        var fixedBytes = Pool(() => System.Text.Encoding.UTF8.GetBytes(fixedText));
-        var randomBytes = Pool(() => System.Text.Encoding.UTF8.GetBytes(Convert.ToBase64String(RandomNumberGenerator.GetBytes(768))));
-        yield return new("AES-256-GCM on bytes (1 KB)", "fixed vs random plaintext",
-            cls =>
-            {
-                byte[] data = cls == 0 ? Pick(fixedBytes) : Pick(randomBytes);
-                return () =>
-                {
-                    var gcm = new Org.BouncyCastle.Crypto.Modes.GcmBlockCipher(Org.BouncyCastle.Crypto.AesUtilities.CreateEngine());
-                    gcm.Init(true, new AeadParameters(new KeyParameter(key), 128, nonceBase, new byte[8]));
-                    byte[] output = new byte[gcm.GetOutputSize(data.Length)];
-                    int len = gcm.ProcessBytes(data, 0, data.Length, output, 0);
-                    gcm.DoFinal(output, len);
-                };
-            });
-
-        SecurePackage valid = new SecureChannel(key, nonceBase).Encrypt(fixedText);
+        SecurePackage valid = new SecureChannel(key, nonceBase).Encrypt(fixedPlaintext);
         yield return new("AES-256-GCM tag check (1 KB)", "tag wrong in first byte vs in last byte",
             cls =>
             {
@@ -196,7 +183,6 @@ public static class ConstantTimeTest
     private static SecurePackage Clone(SecurePackage p) => new()
     {
         SequenceNumber = p.SequenceNumber,
-        Nonce = (byte[])p.Nonce.Clone(),
         Ciphertext = (byte[])p.Ciphertext.Clone(),
         Tag = (byte[])p.Tag.Clone()
     };

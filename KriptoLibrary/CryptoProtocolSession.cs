@@ -1,8 +1,9 @@
 namespace CryptoLibrary
 {
     using System;
+    using System.Security.Cryptography;
 
-    public class CryptoProtocolSession
+    public sealed class CryptoProtocolSession : IDisposable
     {
         public string Role { get; }
         public IdentityService Identity { get; }
@@ -48,7 +49,7 @@ namespace CryptoLibrary
                 clientEph, MyEphemeralPub!, clientKemKey, kemCiphertext, clientNonce, serverNonce);
 
             PeerEphemeralPub = clientEph;
-            InstallKeys(Concat(ecdhSecret, kemSecret));
+            InstallKeys(ecdhSecret, kemSecret);
             return kemCiphertext;
         }
 
@@ -65,7 +66,7 @@ namespace CryptoLibrary
                 MyEphemeralPub!, serverEph, Kem.EncapsulationKey, kemCiphertext, clientNonce, serverNonce);
 
             PeerEphemeralPub = serverEph;
-            InstallKeys(Concat(ecdhSecret, kemSecret));
+            InstallKeys(ecdhSecret, kemSecret);
         }
 
         /// <summary>Server side: Finished value for the ServerHello, bound to the signature.</summary>
@@ -96,7 +97,9 @@ namespace CryptoLibrary
             EnsureRole("Client");
             if (!IsConfirmed)
                 throw new InvalidOperationException("ServerFinished has not been verified.");
-            return ProtocolHelpers.ComputeClientFinished(Keys.ClientFinishedKey, TranscriptHash!, _signature!, _serverFinished!);
+            byte[] clientFinished = ProtocolHelpers.ComputeClientFinished(Keys.ClientFinishedKey, TranscriptHash!, _signature!, _serverFinished!);
+            ClearFinishedKeys(); // the client needs them only once
+            return clientFinished;
         }
 
         /// <summary>Server side: checks the client's Finished; records are accepted only after this succeeds.</summary>
@@ -108,24 +111,58 @@ namespace CryptoLibrary
                 return false;
 
             IsConfirmed = true;
+            ClearFinishedKeys();
             return true;
+        }
+
+        public void Dispose()
+        {
+            Handshake.Dispose();
+            Kem?.Dispose();
+            SendChannel?.Dispose();
+            ReceiveChannel?.Dispose();
+            _keys?.Clear();
         }
 
         private KeySchedule.SessionKeyMaterial Keys =>
             _keys ?? throw new InvalidOperationException("Handshake has not been finalized.");
 
-        private void InstallKeys(byte[] inputKeyingMaterial)
+        private void InstallKeys(byte[] ecdhSecret, byte[] kemSecret)
         {
-            _keys = KeySchedule.DeriveSessionKeys(inputKeyingMaterial, TranscriptHash!);
+            byte[] ikm = GC.AllocateArray<byte>(ecdhSecret.Length + kemSecret.Length, pinned: true);
+            Buffer.BlockCopy(ecdhSecret, 0, ikm, 0, ecdhSecret.Length);
+            Buffer.BlockCopy(kemSecret, 0, ikm, ecdhSecret.Length, kemSecret.Length);
+            CryptographicOperations.ZeroMemory(ecdhSecret);
+            CryptographicOperations.ZeroMemory(kemSecret);
+
+            _keys = KeySchedule.DeriveSessionKeys(ikm, TranscriptHash!);
+            CryptographicOperations.ZeroMemory(ikm);
+
+            // The ephemeral private keys are not needed after this point; clearing them is what
+            // makes the session keys unrecoverable from a later compromise of the process.
+            Handshake.Dispose();
+            Kem?.Dispose();
+
             bool isClient = Role == "Client";
 
             // The client sends with the client-to-server key; the server does the opposite.
+            // SecureChannel keeps its own copies, so the originals are cleared at once.
             SendChannel = new SecureChannel(
                 isClient ? _keys.ClientToServerKey : _keys.ServerToClientKey,
                 isClient ? _keys.ClientToServerNonce : _keys.ServerToClientNonce);
             ReceiveChannel = new SecureChannel(
                 isClient ? _keys.ServerToClientKey : _keys.ClientToServerKey,
                 isClient ? _keys.ServerToClientNonce : _keys.ClientToServerNonce);
+            CryptographicOperations.ZeroMemory(_keys.ClientToServerKey);
+            CryptographicOperations.ZeroMemory(_keys.ClientToServerNonce);
+            CryptographicOperations.ZeroMemory(_keys.ServerToClientKey);
+            CryptographicOperations.ZeroMemory(_keys.ServerToClientNonce);
+        }
+
+        private void ClearFinishedKeys()
+        {
+            CryptographicOperations.ZeroMemory(_keys!.ServerFinishedKey);
+            CryptographicOperations.ZeroMemory(_keys.ClientFinishedKey);
         }
 
         private void EnsureRole(string role)
