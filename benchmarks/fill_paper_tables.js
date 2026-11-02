@@ -17,7 +17,7 @@ for (const line of output.split(/\r?\n/)) {
   if (current && line.trim()) blocks[current].push(line);
 }
 
-const names = { primitives: 'native_browser', aes: 'native_browser_aes', js: 'js_baselines', dudect: 'dudect' };
+const names = { primitives: 'native_browser', aes: 'native_browser_aes', js: 'js_baselines', dudect: 'dudect', dudect_long: 'dudect_long' };
 let tex = fs.readFileSync(texPath, 'utf8').replace(/\r\n/g, '\n');
 for (const [marker, block] of Object.entries(names)) {
   const re = new RegExp(`(% BEGIN rows:${marker}\\n)[\\s\\S]*?(% END rows:${marker})`);
